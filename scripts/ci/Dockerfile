@@ -27,12 +27,10 @@ WORKDIR /build
 COPY .yarnrc.yml package.json yarn.lock ./
 COPY .yarn/patches .yarn/patches
 COPY .yarn/releases .yarn/releases
-COPY apps/native/app/package.json ./apps/native/app/
 
 # Add logging to show what package.json files we're installing from
 RUN echo "=== Installing dependencies from the following package.json files ===" && \
   echo "Root package.json:" && cat package.json | jq '.name' && \
-  echo "Native app package.json:" && cat apps/native/app/package.json | jq '.name' && \
   echo "=== Starting yarn install ==="
 
 RUN --mount=type=cache,target=.yarn/cache,sharing=locked \
