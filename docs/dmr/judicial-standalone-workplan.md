@@ -16,7 +16,7 @@ Target: dev only — build/push to ECR `592944621100`, deploy to ECS in judicial
 Non-judicial `@island.is/*` imports used by judicial (top): `logging`, `island-ui/core|theme`, `nest/config`, `email-service`, `cms-translations`, `nova-sms`, `localization`, `infra-nest-server`, `dokobit-signing`, `nest/problem|sequelize`, `auth-nest-tools`, `infra-tracing`, `cache`, `auth/scopes`, `api/schema`. All are in `libs/` → safe under a light prune.
 
 Blockers found:
-1. `@island.is/api/schema` (used by `web/pages/_app.tsx` for `getTranslations` types) is codegen'd from **`apps/api/src/api.graphql`** — deleting `apps/api` breaks `codegen/frontend-client`. Fix: vendor the few types locally (or commit the generated schema.ts and drop the codegen target). Also verify where `getTranslations` is served from in the new account (today: island.is API gateway).
+1. `@island.is/api/schema` (used by `web/pages/_app.tsx` for `getTranslations` types) is codegen'd from **`apps/api/src/api.graphql`**. This is a compile-time link only: at runtime `getTranslations` is served by `judicial-system-api` (`CmsTranslationsModule` → Contentful). Fix: replace the 2 types locally, then delete `apps/api` (see `decisions.md`). Do not copy the gateway.
 2. `tsconfig.base.json` paths point into deleted apps (`@island.is/web/*`, `air-discount-scheme-web`, `consultation-portal`, `financial-aid-web/*`, `skilavottord-web`). Remove; any lib importing them breaks lint/typecheck (not the judicial build unless in closure).
 3. `scripts/ci/Dockerfile` copies `apps/native/app/package.json`; root `workspaces` = `apps/native/*` → remove both together, regenerate `yarn.lock`.
 4. Workflows (`merge-queue`, `pullrequest`, `push`, `install`, `e2e`, …) assume the full monorepo, helm-values repo and island.is runners/secrets — will not work in DMR org; replace, don't patch.
@@ -39,7 +39,8 @@ Blockers found:
 - [ ] Local `docker build` for all 7; smoke-run web/api/backend with liveness endpoints.
 - [ ] Confirm image tags/naming match what JM-32 mirrored to ECR (so M1 services keep the same repos).
 
-### P3 — Task-def source decision (spike, timeboxed ~1–2 days)
+### P3 — Task-def source — DECIDED: retire DSL (see `decisions.md`)
+Remaining work: a one-off seed script DSL → `deploy/ecs/<service>/taskdef.dev.json`, following the apro-accelerator `taskdef.json` convention. The options below are kept for the record.
 Options:
 - A. **ECS renderer on the DSL** — new output-generator next to the helm one in `infra/src/dsl/output-generators`: env → `environment`, secrets → `secrets[].valueFrom` (SSM/Secrets Manager ARNs), liveness → `healthCheck`/target group path, resources → cpu/memory. Keeps one source of truth; costs: keeping the k8s-shaped DSL (`ref(h.svc)`, xroad, ingress, initContainers → no clean ECS mapping).
 - B. **Retire DSL** — hand-maintained `deploy/ecs/<service>/taskdef.dev.json` (or a tiny TS/jsonnet template), seeded once by a one-off script that reads the DSL. Simple, ECS-native, what `amazon-ecs-render-task-definition` expects.
@@ -64,6 +65,6 @@ Options:
 
 ## Needs from outside this repo
 - DMR org access (GitHub repo settings, Actions OIDC role, ECR push).
-- `clients/DMR/docs/judicial-handoffs/env-secret-matrix.md` + JM-36 context doc (not in this checkout).
+- env-secret-matrix: not needed yet (comes in at P3 seeding). JM-36 doc: not available.
 - Infrastructure Terragrunt repo (`_envcommon/judicial_*.hcl`) for P4.
-- Where CMS translations (`getTranslations`) are served from in the new account.
+- Infra reference: `/Users/snojo/Andes/Apro/apro-accelerator` (`aproorg/terraform-modules` `ecs_service`, `_envcommon/ecs_deployment_pipeline.hcl`) stands in for the DMR Terragrunt repo, which we can't access.
