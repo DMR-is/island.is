@@ -4,7 +4,6 @@
   "sourceRoot": "libs/clients/university-gateway-api/src",
   "projectType": "library",
   "tags": ["lib:client", "scope:client"],
-  "implicitDependencies": ["services-university-gateway"],
   "targets": {
     "lint": {
       "executor": "@nx/eslint:lint"

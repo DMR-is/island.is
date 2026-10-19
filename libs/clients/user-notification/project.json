@@ -4,7 +4,6 @@
   "sourceRoot": "libs/clients/user-notification/src",
   "projectType": "library",
   "tags": ["lib:client", "scope:client"],
-  "implicitDependencies": ["services-user-notification"],
   "targets": {
     "lint": {
       "executor": "@nx/eslint:lint"

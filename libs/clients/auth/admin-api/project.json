@@ -4,7 +4,6 @@
   "sourceRoot": "libs/clients/auth/admin-api/src",
   "projectType": "library",
   "tags": ["scope:client", "lib:client"],
-  "implicitDependencies": ["services-auth-admin-api"],
   "targets": {
     "lint": {
       "executor": "@nx/eslint:lint"

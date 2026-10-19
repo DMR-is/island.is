@@ -4,7 +4,6 @@
   "sourceRoot": "libs/api/domains/endorsement-system/src",
   "projectType": "library",
   "tags": ["lib:api", "scope:api"],
-  "implicitDependencies": ["services-endorsements-api"],
   "generators": {},
   "targets": {
     "lint": {

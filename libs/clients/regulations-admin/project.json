@@ -4,7 +4,6 @@
   "sourceRoot": "libs/clients/regulations-admin/src",
   "projectType": "library",
   "tags": ["lib:client", "scope:client"],
-  "implicitDependencies": ["regulations-admin-backend"],
   "generators": {},
   "targets": {
     "lint": {

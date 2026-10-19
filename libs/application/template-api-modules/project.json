@@ -4,7 +4,6 @@
   "sourceRoot": "libs/application/template-api-modules/src",
   "projectType": "library",
   "tags": ["lib:application-system-api", "scope:application-system-api"],
-  "implicitDependencies": ["services-endorsements-api"],
   "generators": {},
   "targets": {
     "lint": {

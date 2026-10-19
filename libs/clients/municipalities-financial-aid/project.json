@@ -4,7 +4,6 @@
   "sourceRoot": "libs/clients/municipalities-financial-aid/src",
   "projectType": "library",
   "tags": ["lib:client", "scope:client"],
-  "implicitDependencies": ["financial-aid-backend"],
   "targets": {
     "lint": {
       "executor": "@nx/eslint:lint"

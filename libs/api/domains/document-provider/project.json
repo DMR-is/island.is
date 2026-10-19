@@ -4,7 +4,6 @@
   "sourceRoot": "libs/api/domains/document-provider/src",
   "projectType": "library",
   "tags": ["lib:api", "scope:api"],
-  "implicitDependencies": ["services-documents"],
   "generators": {},
   "targets": {
     "lint": {

@@ -3,7 +3,6 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/clients/sessions/src",
   "tags": ["scope:client", "lib:client"],
-  "implicitDependencies": ["services-sessions"],
   "targets": {
     "lint": {
       "executor": "@nx/eslint:lint"

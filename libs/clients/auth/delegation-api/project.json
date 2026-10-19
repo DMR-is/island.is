@@ -3,7 +3,6 @@
   "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/clients/auth/delegation-api/src",
   "tags": ["lib:client", "scope:client"],
-  "implicitDependencies": ["services-auth-delegation-api"],
   "targets": {
     "lint": {
       "executor": "@nx/eslint:lint"

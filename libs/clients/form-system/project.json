@@ -5,7 +5,6 @@
   "projectType": "library",
   "schema": "libs/clients/form-system/gen/fetch/api.graphql",
   "tags": ["lib:client", "scope:client"],
-  "implicitDependencies": ["services-form-system-api"],
   "targets": {
     "lint": {
       "executor": "@nx/eslint:lint",

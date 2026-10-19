@@ -4,7 +4,6 @@
   "sourceRoot": "libs/clients/air-discount-scheme/src",
   "projectType": "library",
   "tags": ["lib:client", "scope:client"],
-  "implicitDependencies": ["air-discount-scheme-backend"],
   "targets": {
     "lint": {
       "executor": "@nx/eslint:lint"
