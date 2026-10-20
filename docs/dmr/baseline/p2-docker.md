@@ -59,5 +59,6 @@ CI (P5) on native amd64 runners.
 
 ## Next (P5 will call this)
 GitHub Actions matrix over `docker-build-matrix.json`: build each service via
-`scripts/dmr/docker-build.sh`, push to ECR 592944621100, then register the ECS
-task def + roll the service in judicial dev 640538430394.
+`scripts/dmr/docker-build.sh <svc> --push`, push to ECR 592944621100, set the
+matching `judicial_<svc>_image_tag` from the printed `TAG=`, then `terraform apply`
+(the `ecs_service` module rolls the service in judicial dev 640538430394).

@@ -12,6 +12,11 @@ reference-next-app, services, skilavottord, system-e2e, tools, web.
 
 `apps/` dropped from ~500 MB to **22 MB**. 7054 files, ~574k lines deleted.
 
+**Correction (2026-10-20, `0960706fbe`):** deleting `system-e2e` also removed the judicial
+Playwright suite — it is not in the Nx build graph, so the closure check missed it.
+`apps/system-e2e` is restored judicial-only (10 specs, 61 tests; islandis tests and
+islandis-only support files removed). Kept apps are now `apps/judicial-system/` + `apps/system-e2e/`.
+
 ## Pre-delete safety check (why this is safe)
 Verified via the Nx project graph **before** deleting:
 - The judicial build closure is **54 projects** and contains **zero** non-judicial `apps/*` projects.

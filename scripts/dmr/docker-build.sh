@@ -44,16 +44,20 @@ PUBLISH=(--load)
 TOKEN_FILE="$(mktemp "${TMPDIR:-/tmp}/nx_cloud_token.XXXXXX")"
 trap 'rm -f "$TOKEN_FILE"' EXIT
 
+usage() { echo "usage: $0 <service|all> [--load|--push] [--tag <tag>]" >&2; exit 2; }
+
 SERVICE=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --push) PUBLISH=(--push); shift ;;
     --load) PUBLISH=(--load); shift ;;
-    --tag)  TAG="$2"; shift 2 ;;
-    *)      SERVICE="$1"; shift ;;
+    --tag)  [[ -n "${2-}" && "${2-}" != -* ]] || usage; TAG="$2"; shift 2 ;;
+    -*)     echo "unknown option: $1" >&2; usage ;;
+    *)      [[ -z "$SERVICE" ]] || { echo "only one service per call (or 'all')" >&2; usage; }
+            SERVICE="$1"; shift ;;
   esac
 done
-[[ -z "$SERVICE" ]] && { echo "usage: $0 <service|all> [--load|--push] [--tag <tag>]"; exit 2; }
+[[ -n "$SERVICE" ]] || usage
 
 build_one() {
   local name="$1"

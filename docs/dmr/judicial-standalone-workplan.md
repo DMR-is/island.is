@@ -3,7 +3,15 @@
 Branch: `chore/judicial-prune` (off `origin/main` + fast-forwarded to `upstream/main` @ `3811f5a58a`).
 Target: dev only — build/push to ECR `592944621100`, deploy to ECS in judicial dev `640538430394`.
 
-## Current state (as found)
+## Status (2026-10-20)
+
+- P0 baseline: done (`docs/dmr/baseline/p0-baseline.md`).
+- P1 light prune: done; judicial e2e suite restored after the fact (`docs/dmr/baseline/p1-prune.md`).
+- P2 images: done; backend built for real, other 6 build the same way (`docs/dmr/baseline/p2-docker.md`).
+- P3/P4: answered by JM-36 Terraform (reference only, another developer owns it).
+- P5/P6: not started.
+
+## Pre-prune state (historical baseline, as found 2026-10-19)
 
 - 22 apps; judicial = `apps/judicial-system/{web,api,backend,digital-mailbox-api,message-handler,scheduler,xrd-api}`. 50 libs; judicial libs = `libs/judicial-system/{audit-trail,auth,consts,court-client,formatters,message,types}`.
 - Builds: Nx. `web` = `@nx/next:build` + `build-custom-server` (webpack); other 6 = `@nx/esbuild`. Docker target markers: `docker-next` (web), `docker-express-yarn` (the rest).

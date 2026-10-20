@@ -35,9 +35,6 @@ if [[ -n "$TEST_RESULTS_S3" ]]; then
   zip -r -0 test-results playwright-report src/test-results
   aws s3 cp test-results.zip "$TEST_RESULTS_S3"
 fi
-if [ "$TEST_EXIT_CODE" != "0" ]; then
-  yarn node "$DIR/src/notifications/notify.js"
-fi
 
 cat <<EOF
 To access the detailed report (with any failure traces), download it from the command
