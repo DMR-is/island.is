@@ -1,0 +1,14 @@
+{
+  "name": "system-e2e",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@playwright/test": "1.62.1",
+    "dd-trace": "5.14.1",
+    "playwright-tesults-reporter": "^1.0.1"
+  },
+  "volta": {
+    "node": "16.17.0"
+  }
+}
