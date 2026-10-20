@@ -8,24 +8,41 @@
 # vs next) and build args are read from scripts/dmr/docker-build-matrix.json.
 #
 # Usage:
-#   scripts/dmr/docker-build.sh <service> [--push] [--tag <tag>]
-#   scripts/dmr/docker-build.sh all       [--push] [--tag <tag>]
+#   scripts/dmr/docker-build.sh <service> [--load|--push] [--tag <tag>]
+#   scripts/dmr/docker-build.sh all       [--load|--push] [--tag <tag>]
+#
+#   --load (default) puts the image in the local docker image store.
+#   --push           pushes it to $DOCKER_REGISTRY instead.
 #
 # Env:
 #   DOCKER_REGISTRY   target registry/repo prefix (default: judicial-system, i.e. local)
 #                     DMR dev: 592944621100.dkr.ecr.eu-west-1.amazonaws.com
-#   DOCKER_TAG        image tag (default: git short sha, overridable with --tag)
+#   DOCKER_TAG        image tag (default: dev_<sha7>_<nonce>, the scheme the
+#                     ECS Terraform consumes; overridable with --tag)
 #   PLATFORM          build platform (default: linux/amd64 — ECS/Fargate)
+#
+# The tag used is printed on the last line (TAG=<tag>) so CI can capture it.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && pwd)"
 MATRIX="$ROOT/scripts/dmr/docker-build-matrix.json"
 DOCKERFILE="$ROOT/scripts/ci/Dockerfile"
 
+default_tag() {
+  local sha
+  sha="$(git -C "$ROOT" rev-parse --short=7 HEAD 2>/dev/null || echo unknown)"
+  echo "dev_${sha}_$(openssl rand -hex 8)"
+}
+
 REGISTRY="${DOCKER_REGISTRY:-judicial-system}"
-TAG="${DOCKER_TAG:-$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo latest)}"
+TAG="${DOCKER_TAG:-$(default_tag)}"
 PLATFORM="${PLATFORM:-linux/amd64}"
-PUBLISH=()
+PUBLISH=(--load)
+
+# Empty Nx Cloud token => Dockerfile builds without remote cache (allowed).
+# Kept outside the repo and removed on any exit, including a failed build.
+TOKEN_FILE="$(mktemp "${TMPDIR:-/tmp}/nx_cloud_token.XXXXXX")"
+trap 'rm -f "$TOKEN_FILE"' EXIT
 
 SERVICE=""
 while [[ $# -gt 0 ]]; do
@@ -36,7 +53,7 @@ while [[ $# -gt 0 ]]; do
     *)      SERVICE="$1"; shift ;;
   esac
 done
-[[ -z "$SERVICE" ]] && { echo "usage: $0 <service|all> [--push] [--load] [--tag <tag>]"; exit 2; }
+[[ -z "$SERVICE" ]] && { echo "usage: $0 <service|all> [--load|--push] [--tag <tag>]"; exit 2; }
 
 build_one() {
   local name="$1"
@@ -49,13 +66,11 @@ build_one() {
   local dist="dist/$home"
 
   echo "==> building $name  (app=$app target=$target tag=$TAG)"
-  # Empty nx_cloud token => Dockerfile builds without remote cache (allowed).
-  : > "$ROOT/nx_cloud_access_token.txt"
   docker buildx build \
     --platform="$PLATFORM" \
     --file="$DOCKERFILE" \
     --target="$target" \
-    --secret "id=nx_cloud_access_token,src=$ROOT/nx_cloud_access_token.txt" \
+    --secret "id=nx_cloud_access_token,src=$TOKEN_FILE" \
     --build-arg="APP=$app" \
     --build-arg="APP_HOME=$home" \
     --build-arg="APP_DIST_HOME=$dist" \
@@ -66,7 +81,6 @@ build_one() {
     -t "$REGISTRY/$app:$TAG" \
     "${PUBLISH[@]}" \
     "$ROOT"
-  rm -f "$ROOT/nx_cloud_access_token.txt"
 }
 
 if [[ "$SERVICE" == "all" ]]; then
@@ -74,3 +88,4 @@ if [[ "$SERVICE" == "all" ]]; then
 else
   build_one "$SERVICE"
 fi
+echo "TAG=$TAG"

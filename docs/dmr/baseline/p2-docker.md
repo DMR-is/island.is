@@ -37,7 +37,9 @@ Built dist outputs match the Dockerfile's CMD/COPY exactly:
 3. **`scripts/dmr/docker-build.sh`** (new): DMR-local / GitHub Actions build helper.
    Drives the shared Dockerfile per service **without** island.is's S3 buildkit cache
    or Nx Cloud token (empty token ⇒ cacheless build, which the Dockerfile allows).
-   `docker-build.sh <service|all> [--push] [--tag <tag>]`, registry via `DOCKER_REGISTRY`.
+   `docker-build.sh <service|all> [--load|--push] [--tag <tag>]`, registry via `DOCKER_REGISTRY`.
+   Defaults to `--load`; default tag `dev_<sha7>_<nonce>`, printed as `TAG=<tag>` on the last line.
+   The empty Nx Cloud token file lives in `$TMPDIR` and is removed on any exit (trap).
 
 ## Real build — VERIFIED (Docker Desktop 28.3.3)
 `DOCKER_TAG=smoke PLATFORM=linux/amd64 scripts/dmr/docker-build.sh backend --load` → **rc=0 in 438s**.
