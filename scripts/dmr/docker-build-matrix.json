@@ -1,5 +1,5 @@
 {
-  "comment": "DMR judicial-system Docker build matrix. Single source of truth for CI (GitHub Actions) and the local build helper scripts/dmr/docker-build.sh. All services build from the shared multi-stage Dockerfile scripts/ci/Dockerfile; no per-service Dockerfile exists by design. Ports verified from each app's src/main.ts (2026-10-19); scheduler is a worker with no HTTP listener.",
+  "comment": "DMR judicial-system Docker build matrix. Single source of truth for CI (GitHub Actions) and the local build helper scripts/dmr/docker-build.sh. All services build from the shared multi-stage Dockerfile scripts/ci/Dockerfile; no per-service Dockerfile exists by design. The 'port' field is the app's compiled-in default (from src/main.ts, 2026-10-19) for local `docker run`; in ECS the JM-36 task-defs (terraform/dev/judicial_*.tf) inject PORT=3333 and set service_port=3333, so 3333 is the authoritative deploy-time port for web/api/backend. scheduler is a worker with no HTTP listener. Images push to the DMR shared ECR 592944621100.dkr.ecr.eu-west-1.amazonaws.com as judicial-system-<svc>:<tag>; the tag is consumed by locals.tf (*_image_tag).",
   "dockerfile": "scripts/ci/Dockerfile",
   "node_version": "22.22.3",
   "services": [
