@@ -13867,7 +13867,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vanilla-extract/integration@npm:^4.0.0":
+"@vanilla-extract/integration@npm:^4.0.0, @vanilla-extract/integration@npm:^4.0.1":
   version: 4.0.1
   resolution: "@vanilla-extract/integration@npm:4.0.1"
   dependencies:
@@ -13955,6 +13955,20 @@ __metadata:
   peerDependencies:
     vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
   checksum: 10/49af422d2774049e29f0edcdb31a53ca99a4b93d3e53e601488d06e2fc91a19fae76dc6b3df5d67a531a086c91f90fef7f8978aeb7cfcf0263e049ae84c8e0f1
+  languageName: node
+  linkType: hard
+
+"@vanilla-extract/webpack-plugin@npm:2.1.10":
+  version: 2.1.10
+  resolution: "@vanilla-extract/webpack-plugin@npm:2.1.10"
+  dependencies:
+    "@vanilla-extract/integration": "npm:^4.0.1"
+    chalk: "npm:^4.1.1"
+    debug: "npm:^4.3.1"
+    loader-utils: "npm:^2.0.0"
+  peerDependencies:
+    webpack: ^4.30.0 || ^5.20.2
+  checksum: 10/62fe2161d7dcca19eb93b15b72f2f49fa7a5352cdfcbea3073254b7edc50ee9dd6af0d564d6867390ce9aad5ebed0080b260f219ed866210684f2522c8e49571
   languageName: node
   linkType: hard
 
@@ -24161,6 +24175,7 @@ __metadata:
     "@vanilla-extract/next-plugin": "npm:2.0.2"
     "@vanilla-extract/recipes": "npm:0.4.0"
     "@vanilla-extract/vite-plugin": "npm:5.2.6"
+    "@vanilla-extract/webpack-plugin": "npm:2.1.10"
     "@vitejs/plugin-react": "npm:6.0.4"
     agentkeepalive: "patch:agentkeepalive@npm%3A4.6.0#~/.yarn/patches/agentkeepalive-npm-4.6.0-6b61ca2a37.patch"
     amazon-s3-uri: "npm:0.0.3"

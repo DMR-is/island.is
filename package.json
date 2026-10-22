@@ -337,6 +337,7 @@
     "@typescript-eslint/parser": "8.64.0",
     "@vanilla-extract/babel-plugin": "1.1.6",
     "@vanilla-extract/vite-plugin": "5.2.6",
+    "@vanilla-extract/webpack-plugin": "2.1.10",
     "@vitejs/plugin-react": "6.0.4",
     "babel-jest": "30.4.1",
     "babel-loader": "8.2.5",
