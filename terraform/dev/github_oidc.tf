@@ -38,12 +38,12 @@ data "aws_iam_policy_document" "github_ci_trust" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      # The repo uses GitHub's immutable subject format
-      # (repo:<org>@<org_id>/<repo>@<repo_id>:...). Match on the ids so the
-      # planned repo rename does not lock CI out; keep the classic form too.
+      # This repo sends GitHub's immutable subject format
+      # (repo:<org>@<id>/<repo>@<id>:...). Match on names only; the ids are
+      # wildcarded so no numeric ids live in code.
       values = [
         "repo:${local.github_org}/${local.github_repo}:*",
-        "repo:*@151839245/*@1387616580:*",
+        "repo:${local.github_org}@*/${local.github_repo}@*:*",
       ]
     }
   }
