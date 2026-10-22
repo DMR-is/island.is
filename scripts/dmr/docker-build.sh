@@ -20,6 +20,9 @@
 #   DOCKER_TAG        image tag (default: dev_<sha7>_<nonce>, the scheme the
 #                     ECS Terraform consumes; overridable with --tag)
 #   PLATFORM          build platform (default: linux/amd64 — ECS/Fargate)
+#   BUILDX_CACHE      "gha" = use the GitHub Actions layer cache (CI only; needs
+#                     ACTIONS_RUNTIME_TOKEN, exposed by crazy-max/ghaction-github-runtime).
+#                     Unset = no external cache.
 #
 # The tag used is printed on the last line (TAG=<tag>) so CI can capture it.
 set -euo pipefail
@@ -69,8 +72,14 @@ build_one() {
   target="$(jq -r '.target' <<<"$row")"
   local dist="dist/$home"
 
+  local cache=()
+  if [[ "${BUILDX_CACHE:-}" == "gha" ]]; then
+    cache=(--cache-from "type=gha,scope=$app" --cache-to "type=gha,mode=max,scope=$app")
+  fi
+
   echo "==> building $name  (app=$app target=$target tag=$TAG)"
   docker buildx build \
+    ${cache[@]+"${cache[@]}"} \
     --platform="$PLATFORM" \
     --file="$DOCKERFILE" \
     --target="$target" \

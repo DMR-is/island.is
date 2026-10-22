@@ -1,0 +1,91 @@
+name: Images
+
+# Build judicial-system images with scripts/dmr/docker-build.sh and push them to
+# the DMR shared ECR (592944621100, eu-west-1). Every service in one run gets
+# the same tag, dev_<sha7>_<nonce>, which terraform/dev/locals.tf consumes.
+# Only web/api/backend have ECR repos today.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/judicial-system/**
+      - libs/**
+      - package.json
+      - yarn.lock
+      - scripts/ci/Dockerfile
+      - scripts/dmr/**
+      - .github/workflows/images.yml
+  workflow_dispatch:
+    inputs:
+      services:
+        description: Comma-separated services to build
+        default: web,api,backend
+
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: eu-west-1
+  ECR_ROLE: arn:aws:iam::592944621100:role/shared-github-ci-role
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.p.outputs.tag }}
+      services: ${{ steps.p.outputs.services }}
+    steps:
+      - id: p
+        env:
+          SERVICES: ${{ inputs.services || 'web,api,backend' }}
+        run: |
+          echo "tag=dev_${GITHUB_SHA::7}_$(openssl rand -hex 8)" >> "$GITHUB_OUTPUT"
+          echo "services=$(jq -cn --arg s "${SERVICES// /}" '$s | split(",")')" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.plan.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # The image build installs the whole workspace; hosted runners start with
+      # ~14 GB free, so drop toolchains we never use.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ECR_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Exposes ACTIONS_RUNTIME_TOKEN so buildx can use the gha layer cache.
+      - uses: crazy-max/ghaction-github-runtime@v3
+
+      - name: Build and push
+        env:
+          DOCKER_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          BUILDX_CACHE: gha
+        run: scripts/dmr/docker-build.sh "${{ matrix.service }}" --push --tag "${{ needs.plan.outputs.tag }}"
+
+      - name: Summary
+        run: |
+          echo "### judicial-system-${{ matrix.service }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`${{ steps.ecr.outputs.registry }}/judicial-system-${{ matrix.service }}:${{ needs.plan.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"

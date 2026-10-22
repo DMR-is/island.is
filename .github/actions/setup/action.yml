@@ -1,0 +1,37 @@
+name: Setup node + yarn
+description: Node from package.json engines, yarn via corepack, cached install, codegen.
+
+inputs:
+  codegen:
+    description: Run `yarn codegen` after install
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version-file: package.json
+
+    - name: Enable corepack
+      shell: bash
+      run: corepack enable && node -v && yarn --version
+
+    - name: Cache yarn
+      uses: actions/cache@v4
+      with:
+        path: |
+          .yarn/cache
+          node_modules
+        key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock', '.yarnrc.yml') }}
+        restore-keys: yarn-${{ runner.os }}-
+
+    - name: Install
+      shell: bash
+      run: yarn install --immutable
+
+    - name: Codegen
+      if: inputs.codegen == 'true'
+      shell: bash
+      run: yarn codegen

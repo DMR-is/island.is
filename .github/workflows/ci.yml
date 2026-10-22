@@ -1,0 +1,53 @@
+name: CI
+
+# Build, lint and unit-test the judicial-system services on GitHub-hosted runners.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NX_DAEMON: 'false'
+  NX_NO_CLOUD: 'true'
+  NODE_OPTIONS: --max-old-space-size=6144
+  JS_PROJECTS: >-
+    judicial-system-api,judicial-system-backend,judicial-system-web,
+    judicial-system-digital-mailbox-api,judicial-system-message-handler,
+    judicial-system-scheduler,judicial-system-xrd-api
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Build all judicial services
+        run: yarn nx run-many -t build --projects="${JS_PROJECTS// /}" --parallel=2
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Lint
+        run: yarn nx run-many -t lint --projects="${JS_PROJECTS// /},system-e2e" --parallel=2
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Unit tests
+        run: yarn nx run-many -t test --projects="${JS_PROJECTS// /}" --parallel=1 -- --ci --maxWorkers=2
