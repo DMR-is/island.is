@@ -75,6 +75,17 @@ jobs:
       - id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      # Log in to public.ecr.aws so base-image pulls are authenticated.
+      # Anonymous pulls from shared runner IPs get 429 Too Many Requests.
+      # Public ECR auth only works from us-east-1.
+      - name: Login to Public ECR
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+        env:
+          AWS_REGION: us-east-1
+          AWS_DEFAULT_REGION: us-east-1
+
       - uses: docker/setup-buildx-action@v3
 
       # Exposes ACTIONS_RUNTIME_TOKEN so buildx can use the gha layer cache.
