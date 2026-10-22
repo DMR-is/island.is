@@ -3,10 +3,10 @@ name: CI
 # One pipeline for the judicial-system services on GitHub-hosted runners,
 # shaped like island.is push.yml:
 #
-#   prepare ─┬─ lint  (matrix, per project)
+#   prepare ─┬─ lint  (one job, all projects)
 #            ├─ test  (matrix, per project)
 #            ├─ build (matrix, per project)
-#            └─ docker (matrix, per image)  ── push / dispatch only
+#            │    └─ docker (matrix, per image)  ── push / dispatch only
 #                                   └─ deploy (one job) ── main / dispatch only
 #
 # prepare runs install + codegen ONCE (.github/actions/load-deps) and caches
@@ -72,16 +72,17 @@ jobs:
   lint:
     needs: prepare
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        project: ${{ fromJSON(needs.prepare.outputs.lint) }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
       - uses: ./.github/actions/load-deps
-      - run: yarn nx run ${{ matrix.project }}:lint
+      # One job for all projects: lint is cheap, so a matrix only adds runner start-up.
+      - env:
+          PROJECTS: ${{ needs.prepare.outputs.lint }}
+        run: |
+          yarn nx run-many -t lint --parallel=2 \
+            --projects="$(jq -r 'join(",")' <<< "$PROJECTS")"
 
   test:
     needs: prepare
@@ -114,7 +115,8 @@ jobs:
   # Image build happens inside Docker (scripts/ci/Dockerfile, same as island.is),
   # so this leg needs only the source plus the generated files — no host install.
   docker:
-    needs: prepare
+    # Wait for build: no point pushing an image whose app fails to build.
+    needs: [prepare, build]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 60
