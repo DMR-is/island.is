@@ -2,8 +2,8 @@
 #
 # The account had no GitHub OIDC provider. This adds it, plus one CI role that
 # only DMR-is/island.is workflows can assume. The role mirrors the shared
-# account's github-ci role (ReadOnlyAccess) so CI can run `terraform plan`.
-# Deploy (apply) rights are added later, once the deploy workflow is settled.
+# account's github-ci role (ReadOnlyAccess) so CI can run `terraform plan`,
+# plus scoped deploy rights so CI can `terraform apply` the ECS services.
 #
 # ECR push lives in the shared account (592944621100) and is granted there by
 # the infrastructure repo's github-ci role, not by this file.
@@ -71,4 +71,82 @@ resource "aws_iam_role_policy" "github_ci_state" {
   name   = "terraform-state"
   role   = aws_iam_role.github_ci.id
   policy = data.aws_iam_policy_document.github_ci_state.json
+}
+
+# `terraform apply` of this root: everything the ecs_service module manages.
+# IAM writes are limited to the module's judicial-system-* roles and policies.
+data "aws_iam_policy_document" "github_ci_deploy" {
+  statement {
+    sid    = "ServiceResources"
+    effect = "Allow"
+    actions = [
+      "ecs:*",
+      "elasticloadbalancing:*",
+      "application-autoscaling:*",
+      "codedeploy:*",
+      "servicediscovery:*",
+      "logs:*",
+      "cloudwatch:PutMetricAlarm",
+      "cloudwatch:DeleteAlarms",
+      "route53:ChangeResourceRecordSets",
+      "route53:GetChange",
+      "ec2:CreateSecurityGroup",
+      "ec2:DeleteSecurityGroup",
+      "ec2:AuthorizeSecurityGroupIngress",
+      "ec2:AuthorizeSecurityGroupEgress",
+      "ec2:RevokeSecurityGroupIngress",
+      "ec2:RevokeSecurityGroupEgress",
+      "ec2:ModifySecurityGroupRules",
+      "ec2:UpdateSecurityGroupRuleDescriptionsIngress",
+      "ec2:UpdateSecurityGroupRuleDescriptionsEgress",
+      "ec2:CreateTags",
+      "ec2:DeleteTags",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "ServiceIam"
+    effect = "Allow"
+    actions = [
+      "iam:CreateRole",
+      "iam:DeleteRole",
+      "iam:UpdateRole",
+      "iam:UpdateAssumeRolePolicy",
+      "iam:TagRole",
+      "iam:UntagRole",
+      "iam:AttachRolePolicy",
+      "iam:DetachRolePolicy",
+      "iam:PutRolePolicy",
+      "iam:DeleteRolePolicy",
+      "iam:CreatePolicy",
+      "iam:DeletePolicy",
+      "iam:CreatePolicyVersion",
+      "iam:DeletePolicyVersion",
+      "iam:TagPolicy",
+      "iam:UntagPolicy",
+    ]
+    resources = [
+      "arn:aws:iam::*:role/judicial-system-*",
+      "arn:aws:iam::*:policy/judicial-system-*",
+    ]
+  }
+
+  statement {
+    sid       = "PassServiceRoles"
+    effect    = "Allow"
+    actions   = ["iam:PassRole"]
+    resources = ["arn:aws:iam::*:role/judicial-system-*"]
+    condition {
+      test     = "StringEquals"
+      variable = "iam:PassedToService"
+      values   = ["ecs-tasks.amazonaws.com", "codedeploy.amazonaws.com", "application-autoscaling.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "github_ci_deploy" {
+  name   = "terraform-deploy"
+  role   = aws_iam_role.github_ci.id
+  policy = data.aws_iam_policy_document.github_ci_deploy.json
 }
