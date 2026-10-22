@@ -6,7 +6,8 @@ name: CI
 #   prepare ─┬─ lint  (one job, all projects)
 #            ├─ test  (matrix, per project; backend in 6 shards)
 #            ├─ build (matrix, per project)
-#            │    └─ docker (matrix, per image)  ── push / dispatch only
+#            ├─ docker-deps (one job: deps-stage layer cache in ECR) ── push / dispatch only
+#            │    └─ docker (matrix, per image, after build too) ── push / dispatch only
 #                                   └─ deploy (one job) ── main / dispatch only
 #
 # prepare runs install + codegen ONCE (.github/actions/load-deps) and caches
@@ -104,12 +105,11 @@ jobs:
       - uses: ./.github/actions/load-deps
 
       # ts-jest transform cache: unchanged files skip the TypeScript compile.
-      # Nx local cache (.cache/nx): an unchanged project replays its last result.
+      # (No .cache/nx here: Nx 22 refuses a restored local cache. See the
+      # Nx caching todo in docs/dmr/judicial-standalone-workplan.md.)
       - uses: actions/cache@v4
         with:
-          path: |
-            ${{ runner.temp }}/jest
-            .cache/nx
+          path: ${{ runner.temp }}/jest
           key: test-${{ runner.os }}-${{ matrix.id }}-${{ github.sha }}
           restore-keys: test-${{ runner.os }}-${{ matrix.id }}-
 
@@ -132,18 +132,46 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
       - uses: ./.github/actions/load-deps
-      - uses: actions/cache@v4
-        with:
-          path: .cache/nx
-          key: build-${{ runner.os }}-${{ matrix.project }}-${{ github.sha }}
-          restore-keys: build-${{ runner.os }}-${{ matrix.project }}-
       - run: yarn nx run ${{ matrix.project }}:build
+
+  # Builds the Dockerfile's deps stage (yarn install) once into a shared ECR
+  # layer cache, so the docker legs reuse it instead of each installing
+  # (island.is: 10_prepare-docker-deps.sh with its S3 deps-cache).
+  docker-deps:
+    needs: prepare
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ECR_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Login to Public ECR
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+        env:
+          AWS_REGION: us-east-1
+          AWS_DEFAULT_REGION: us-east-1
+      - uses: docker/setup-buildx-action@v3
+      - name: Build deps cache
+        env:
+          DOCKER_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          BUILDX_CACHE: ecr
+        run: scripts/dmr/docker-build.sh deps
 
   # Image build happens inside Docker (scripts/ci/Dockerfile, same as island.is),
   # so this leg needs only the source plus the generated files — no host install.
   docker:
     # Wait for build: no point pushing an image whose app fails to build.
-    needs: [prepare, build]
+    needs: [prepare, build, docker-deps]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -193,13 +221,10 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      # Exposes ACTIONS_RUNTIME_TOKEN so buildx can use the gha layer cache.
-      - uses: crazy-max/ghaction-github-runtime@v3
-
       - name: Build and push
         env:
           DOCKER_REGISTRY: ${{ steps.ecr.outputs.registry }}
-          BUILDX_CACHE: gha
+          BUILDX_CACHE: ecr
         run: scripts/dmr/docker-build.sh "${{ matrix.service }}" --push --tag "${{ needs.prepare.outputs.tag }}"
 
       - name: Summary
