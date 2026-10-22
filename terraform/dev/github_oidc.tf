@@ -11,6 +11,14 @@
 locals {
   github_org  = "DMR-is"
   github_repo = "island.is"
+
+  # GitHub's numeric ids for the org and repo. This repo has GitHub's
+  # "immutable subject" OIDC setting on, so the sub claim carries them:
+  #   repo:DMR-is@151839245/island.is@1387616580:<ref>
+  # Look them up with:
+  #   gh api repos/DMR-is/island.is/actions/oidc/customization/sub
+  github_org_id  = "151839245"
+  github_repo_id = "1387616580"
 }
 
 resource "aws_iam_openid_connect_provider" "github" {
@@ -38,12 +46,11 @@ data "aws_iam_policy_document" "github_ci_trust" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      # This repo sends GitHub's immutable subject format
-      # (repo:<org>@<id>/<repo>@<id>:...). Match on names only; the ids are
-      # wildcarded so no numeric ids live in code.
+      # First line: classic subject format. Second: immutable subject format
+      # (repo:<org>@<id>/<repo>@<id>:...), which this repo sends today.
       values = [
         "repo:${local.github_org}/${local.github_repo}:*",
-        "repo:${local.github_org}@*/${local.github_repo}@*:*",
+        "repo:${local.github_org}@${local.github_org_id}/${local.github_repo}@${local.github_repo_id}:*",
       ]
     }
   }
