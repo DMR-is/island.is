@@ -68,6 +68,7 @@ Pipeline is **build → push → bump tag → `terraform apply`**, NOT render-ta
 - [ ] PR workflow: install + lint/test/build judicial only (node 22.22.3 + JDK + the 3 ordered codegen steps — see P0 baseline doc).
 - [ ] Delete inherited island.is workflows.
 - Local substitute until access: `scripts/dmr/docker-build.sh <svc> --load` (proven on backend) + `terraform plan` with a read-only profile.
+- [ ] **Later — Nx caching.** The `.cache/nx` restore in `ci.yml` is refused by Nx 22 ("Unrecognized Cache Artifacts": entries from another machine are untrusted without the `.nx/workspace-data` db). Options: Nx Cloud (what island.is used), `nx affected`. `@nx/s3-cache` is deprecated (cache-poisoning CVE) — don't use. Until decided, the `.cache/nx` steps buy nothing and can be dropped.
 
 ### P6 — Runbook + cutover (story)
 - [ ] `docs/dmr/runbook.md`: build locally, deploy a service to dev, rollback (previous task-def revision), run migrations, add an env var/secret.
