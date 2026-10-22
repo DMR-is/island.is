@@ -145,6 +145,18 @@ data "aws_iam_policy_document" "github_ci_deploy" {
     ]
   }
 
+  # CI writes the deployed image tag per service (image_tags.tf) before apply.
+  statement {
+    sid    = "ImageTagParameters"
+    effect = "Allow"
+    actions = [
+      "ssm:PutParameter",
+      "ssm:AddTagsToResource",
+      "ssm:RemoveTagsFromResource",
+    ]
+    resources = ["arn:aws:ssm:*:*:parameter/judicial-system/*"]
+  }
+
   statement {
     sid       = "PassServiceRoles"
     effect    = "Allow"

@@ -1,11 +1,8 @@
 name: Setup node + yarn
-description: Node from package.json engines, yarn via corepack, cached install, codegen.
-
-inputs:
-  codegen:
-    description: Run `yarn codegen` after install
-    required: false
-    default: 'true'
+description: >-
+  Node from package.json engines, yarn via corepack, cached install.
+  Mirrors island.is .github/actions/setup-yarn (install skipped on cache hit),
+  on actions/cache instead of their runs-on S3 cache.
 
 runs:
   using: composite
@@ -18,20 +15,16 @@ runs:
       shell: bash
       run: corepack enable && node -v && yarn --version
 
-    - name: Cache yarn
+    - name: Cache dependencies
+      id: deps
       uses: actions/cache@v4
       with:
         path: |
           .yarn/cache
           node_modules
-        key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock', '.yarnrc.yml') }}
-        restore-keys: yarn-${{ runner.os }}-
+        key: deps-${{ runner.os }}-${{ hashFiles('yarn.lock', '.yarnrc.yml') }}
 
     - name: Install
+      if: steps.deps.outputs.cache-hit != 'true'
       shell: bash
       run: yarn install --immutable
-
-    - name: Codegen
-      if: inputs.codegen == 'true'
-      shell: bash
-      run: yarn codegen

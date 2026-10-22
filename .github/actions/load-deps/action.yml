@@ -1,0 +1,27 @@
+name: Load generated files
+description: >-
+  Codegen once per commit, shared by every job. Mirrors island.is
+  .github/actions/load-deps: the first job runs scripts/ci/generate-files.mjs
+  (yarn codegen + tar of the outputs) and caches the tarball; every later job
+  restores and extracts it. Keyed on the commit SHA so ci.yml legs on the same
+  commit never run codegen twice. Needs ./.github/actions/setup first.
+
+runs:
+  using: composite
+  steps:
+    - name: Restore generated files
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/generated-files.tar.gz
+        key: generated-files-${{ github.sha }}
+
+    - name: Run codegen and pack outputs
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: node scripts/ci/generate-files.mjs "$RUNNER_TEMP/generated-files.tar.gz"
+
+    - name: Extract generated files
+      if: steps.cache.outputs.cache-hit == 'true'
+      shell: bash
+      run: tar -xzf "$RUNNER_TEMP/generated-files.tar.gz"
