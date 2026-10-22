@@ -4,7 +4,7 @@ name: CI
 # shaped like island.is push.yml:
 #
 #   prepare ─┬─ lint  (one job, all projects)
-#            ├─ test  (matrix, per project)
+#            ├─ test  (matrix, per project; backend in 6 shards)
 #            ├─ build (matrix, per project)
 #            │    └─ docker (matrix, per image)  ── push / dispatch only
 #                                   └─ deploy (one job) ── main / dispatch only
@@ -50,6 +50,7 @@ jobs:
     timeout-minutes: 30
     outputs:
       projects: ${{ steps.m.outputs.projects }}
+      tests: ${{ steps.m.outputs.tests }}
       lint: ${{ steps.m.outputs.lint }}
       images: ${{ steps.m.outputs.images }}
       tag: ${{ steps.m.outputs.tag }}
@@ -65,6 +66,10 @@ jobs:
         run: |
           m=scripts/dmr/docker-build-matrix.json
           echo "projects=$(jq -c '[.services[].app]' "$m")" >> "$GITHUB_OUTPUT"
+          # Backend has ~600 spec files; split it into 6 jest shards, others run whole.
+          echo "tests=$(jq -c '[.services[].app | if . == "judicial-system-backend"
+            then (range(1;7) as $i | {project: ., shard: "\($i)/6", id: "\(.)-s\($i)"})
+            else {project: ., shard: "", id: .} end]' "$m")" >> "$GITHUB_OUTPUT"
           echo "lint=$(jq -c '[.services[].app] + ["system-e2e"]' "$m")" >> "$GITHUB_OUTPUT"
           echo "images=$(jq -cn --arg s "${IMAGES// /}" '$s | split(",")')" >> "$GITHUB_OUTPUT"
           echo "tag=dev_${GITHUB_SHA::7}_$(openssl rand -hex 8)" >> "$GITHUB_OUTPUT"
@@ -86,17 +91,34 @@ jobs:
 
   test:
     needs: prepare
+    name: test (${{ matrix.project }}${{ matrix.shard && format(' {0}', matrix.shard) || '' }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        project: ${{ fromJSON(needs.prepare.outputs.projects) }}
+        include: ${{ fromJSON(needs.prepare.outputs.tests) }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
       - uses: ./.github/actions/load-deps
-      - run: yarn nx run ${{ matrix.project }}:test --ci --maxWorkers=2
+
+      # ts-jest transform cache: unchanged files skip the TypeScript compile.
+      # Nx local cache (.cache/nx): an unchanged project replays its last result.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/jest
+            .cache/nx
+          key: test-${{ runner.os }}-${{ matrix.id }}-${{ github.sha }}
+          restore-keys: test-${{ runner.os }}-${{ matrix.id }}-
+
+      # Public-repo runners have 4 vCPU / 16 GB.
+      - env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          yarn nx run ${{ matrix.project }}:test --ci --maxWorkers=4 \
+            --cacheDirectory="$RUNNER_TEMP/jest" ${SHARD:+--shard="$SHARD"}
 
   build:
     needs: prepare
@@ -110,6 +132,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
       - uses: ./.github/actions/load-deps
+      - uses: actions/cache@v4
+        with:
+          path: .cache/nx
+          key: build-${{ runner.os }}-${{ matrix.project }}-${{ github.sha }}
+          restore-keys: build-${{ runner.os }}-${{ matrix.project }}-
       - run: yarn nx run ${{ matrix.project }}:build
 
   # Image build happens inside Docker (scripts/ci/Dockerfile, same as island.is),
