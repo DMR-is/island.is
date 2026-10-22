@@ -2,7 +2,7 @@
 #
 # The account had no GitHub OIDC provider. This adds it, plus one CI role that
 # only DMR-is/island.is workflows can assume. The role mirrors the shared
-# account's github-ci role (ReadOnlyAccess) so CI can run `tofu plan`.
+# account's github-ci role (ReadOnlyAccess) so CI can run `terraform plan`.
 # Deploy (apply) rights are added later, once the deploy workflow is settled.
 #
 # ECR push lives in the shared account (592944621100) and is granted there by
@@ -53,7 +53,7 @@ resource "aws_iam_role_policy_attachment" "github_ci_readonly" {
   policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
 }
 
-# `tofu plan` must lock and read the app state key in the infra state bucket.
+# `terraform plan` must lock and read the app state key in the infra state bucket.
 data "aws_iam_policy_document" "github_ci_state" {
   statement {
     effect    = "Allow"
