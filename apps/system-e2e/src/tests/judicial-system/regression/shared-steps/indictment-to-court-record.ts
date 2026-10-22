@@ -133,7 +133,7 @@ export const prosecutorCreatesIndictmentCase = async (
 
   // The auto-created indictment count is expanded by default (open state is
   // persisted in local storage), so no "Opna alla" toggle is needed.
-  await page.getByPlaceholder('AB123').fill('AB123')
+  await page.getByPlaceholder('AB-123').fill('AB123')
 
   await Promise.all([
     verifyRequestCompletion(page, '/api/graphql', 'UpdateIndictmentCount'),

@@ -103,7 +103,7 @@ test.describe.serial('Verdict appeal tests', () => {
         .check(),
     ])
     const confirmDefenderButton = page.getByRole('button', {
-      name: 'Staðfesta val á verjanda',
+      name: 'Staðfesta val',
     })
     await expect(confirmDefenderButton).toBeEnabled()
     await confirmDefenderButton.click()
