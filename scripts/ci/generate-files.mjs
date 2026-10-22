@@ -14,7 +14,6 @@ const additionalPatterns = [
   '**/*.generated.ts',
   '**/possibleTypes.json',
   '**/fragmentTypes.json',
-  'libs/api/mocks/src/schema.ts',
   '**/gen/fetch/**/*',
 ]
 
