@@ -13,9 +13,10 @@ Dev reference: account `640538430394`, VPC `vpc-0014be8651be6f7e6` (`10.74.48.0/
 - [ ] Prod private route table: send the X-Road VPC ranges to the TGW.
       Dev: `10.67.0.0/26`, `10.67.0.64/26`, `10.67.0.128/26` in `Dev-vpc-private`.
 - [ ] Security server SG: allow the prod VPC CIDR on the client port.
-- [ ] DNS: X-Road account authorizes the prod VPC on the private zone for the prod SS name
-      (`aws route53 create-vpc-association-authorization`), then we associate it from prod.
-      Alternative: a Route 53 Resolver rule shared through RAM. Use whichever dev ends up using.
+- [ ] DNS, X-Road side: add the prod VPC id to `associated_ingress_vpc_ids` in
+      `infrastructure/xroad/config/prod.yml` and apply. Dev: `xroad/config/dev.yml` (JM-13).
+- [ ] DNS, our side: set `xroad.internal_zone_id` in `infrastructure/judicial/config/prod.yml`,
+      add `judicial/prod/xroad_hosted_zone_association/terragrunt.hcl` (copy of dev) and apply.
 - [ ] Verify from a prod backend task: SS name resolves to a private IP and the client port answers.
 
 ## 2. X-Road client update (backend)
