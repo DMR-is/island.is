@@ -275,10 +275,13 @@ do_apply() {
     say ">> continuing on $(git rev-parse --abbrev-ref HEAD)"
   fi
 
-  local applied=0 lockfile_touched=0 sha rc
+  local applied=0 lockfile_touched=0 sha rc landed
+  # capture once: `git log | grep -q` under pipefail fails on SIGPIPE and
+  # made --continue re-replay commits that had already landed
+  landed="$(git log --format='%s' "$BASE..HEAD" 2>/dev/null || true)"
   for sha in "${RELEVANT[@]}"; do
     # idempotent: skip if an equivalent subject already landed on this branch
-    if git log --format='%s' "$BASE..HEAD" 2>/dev/null | grep -qxF "$(git log -1 --format='%s' "$sha")"; then
+    if grep -qxF -- "$(git log -1 --format='%s' "$sha")" <<<"$landed"; then
       continue
     fi
     say ">> replay $(git log -1 --format='%h %s' "$sha")"
