@@ -6,6 +6,42 @@ These solutions are [FOSS](https://en.wikipedia.org/wiki/Free_and_open-source_so
 
 The repository is a [monorepo](https://docs.devland.is/technical-overview/monorepo) that has multiple apps (something that can be built and run) and libraries (which other apps and libraries can depend on). All custom-written services are also stored there.
 
+## DMR judicial system (dev)
+
+This fork runs only the judicial system, on DMR's own AWS (ECS/Fargate) instead of island.is Kubernetes.
+
+| What | Where |
+| --- | --- |
+| Web | [judicial-system.rettarvorslugatt.dev.dmr-dev.cloud](https://judicial-system.rettarvorslugatt.dev.dmr-dev.cloud) |
+| API | same host, `/api/*` |
+| AWS | account profile `dmr-judev`, `eu-west-1`, ECS cluster `dev-dmr-judicial` |
+| Internal names | `<service>.dmr.local:3333` (CloudMap) |
+| X-Road security server | `ss.xroad.dev.dmr-dev.cloud` |
+| X-Road client | `IS-DEV/GOV/10014/Judicial-Client` |
+| X-Road provider | `IS-DEV/GOV/10014/Judicial-Protected` (`judicial-system-v2`, `judicial-system-mailbox-api`) |
+
+Services (`apps/judicial-system/`):
+
+| Service | Runs as |
+| --- | --- |
+| `web`, `api`, `backend` | ECS services behind the public ALB |
+| `xrd-api`, `digital-mailbox-api` | ECS services, reached through X-Road |
+| `message-handler` | ECS service (SQS worker) |
+| `scheduler` | Scheduled ECS task, `cron(0 2,9 * * ? *)` UTC |
+
+Paths:
+
+| Path | What |
+| --- | --- |
+| `terraform/dev/` | Service Terraform (task defs, env, secrets) |
+| `.github/workflows/ci.yml` | Lint, test, build, Docker images, `terraform apply` on push to `main` |
+| `.github/workflows/terraform.yml` | Terraform plan on PRs |
+| `scripts/dmr/docker-build.sh` | Shared Docker build for all services |
+| `scripts/dmr/upstream-sync.sh` | Pull judicial commits from upstream `island-is/island.is` |
+| `docs/dmr/` | Workplan, decisions, CI, X-Road, upstream sync, prod todo |
+
+Network, ALB, database and X-Road security server live in the separate `DMR-is/infrastructure` repo (`judicial/` and `xroad/`).
+
 ## Storybook
 
 The Ísland.is design system is developed and showcased using [Storybook](https://storybook.js.org) and is publicly available at [ui.devland.is](https://ui.devland.is).
