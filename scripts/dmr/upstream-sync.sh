@@ -95,6 +95,18 @@ path_is_kept() {
   for k in "${DMR_OWNED[@]}"; do
     case "$p" in "$k"*) return 1 ;; esac
   done
+  # libs/: top-level dirs like libs/api/ survive the prune as shells (README
+  # only) while their nested projects (libs/api/domains/payments) are gone.
+  # So a libs path is kept only if an ancestor dir still has a project.json.
+  case "$p" in
+    libs/*)
+      local d="${p%/*}"
+      while [ "$d" != "libs" ] && [ -n "$d" ]; do
+        [ -f "$d/project.json" ] && return 0
+        d="${d%/*}"
+      done
+      return 1 ;;
+  esac
   for k in "${KEPT[@]}"; do
     case "$k" in
       */) case "$p" in "$k"*) return 0 ;; esac ;;   # prefix
