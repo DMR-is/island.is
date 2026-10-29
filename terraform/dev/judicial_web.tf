@@ -4,7 +4,7 @@
 # Single-host path split: web is the "/*" catch-all at listener priority 100,
 # evaluated AFTER api's /api/* rule (10). Same-origin with api (no CORS).
 #
-#   API_URL          = https://judicial-system.<domain>            (browser)
+#   API_URL          = https://rettarvorslugatt.dev.dmr-dev.cloud (apex, browser)
 #   INTERNAL_API_URL = http://judicial-system-api.dmr.local:3333   (server-side, CloudMap)
 
 locals {
@@ -13,7 +13,16 @@ locals {
   judicial_web_dd_version   = split("_", local.judicial_web_image_tag)[1]
   judicial_web_health       = "/liveness"
 
-  judicial_host    = module.infra_outputs.alb_route53_record_names["judicial-system"]
+  # Public host for the frontend + api = the APEX, fronted by CloudFront
+  # (cloudfront_alb) which forwards the viewer Host to the ALB. The ALB
+  # host-based listener rules (below + in judicial_api.tf) match this apex, and
+  # the app's auth config (AUTH_IDS_REDIRECT_URI etc.) uses it, so the browser
+  # host, the IDS redirect_uri and the host-only auth cookies are all the same
+  # host and login completes on the apex. (Previously this was
+  # alb_route53_record_names["judicial-system"] — the origin subdomain — which
+  # broke apex login because cookies/redirect_uri were scoped to the subdomain.
+  # That subdomain record now survives ONLY as CloudFront's cert-valid origin.)
+  judicial_host    = local.domain
   api_internal_url = "http://judicial-system-api.${local.internal_domain}:3333"
 }
 
@@ -52,8 +61,9 @@ module "judicial_web" {
   autoscaling_max_capacity = 2
 
   # Single-host path split — web catch-all at LOWER priority than api (10).
-  # No Route 53 record created here (the foundation alb unit owns the host record,
-  # fronted by CloudFront / JM-37).
+  # hosts = the apex; CloudFront forwards the viewer Host so the ALB matches it.
+  # No Route 53 record created here (CloudFront owns the apex A/AAAA alias; the
+  # foundation alb unit owns the judicial-system origin record).
   create_record          = false
   create_listener_rule   = true
   hosts                  = [local.judicial_host]
