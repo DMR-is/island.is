@@ -74,7 +74,7 @@ module "judicial_api" {
 
     # --- service-defined env (api .ts) ---
     AUTH_IDS_SCOPE                 = "openid profile offline_access"
-    AUTH_IDS_CLIENT_ID             = "@rettarvorslugatt.island.is/web"
+    AUTH_IDS_CLIENT_ID             = "@rettarvorslugatt.is/rettarvorslugatt"
     IDENTITY_SERVER_ISSUER_URL     = "https://identity-server.dev01.devland.is"
     AUTH_IDS_REDIRECT_URI          = "https://${local.judicial_host}/api/auth/callback/identity-server"
     AUTH_IDS_LOGOUT_REDIRECT_URI   = "https://${local.judicial_host}"
