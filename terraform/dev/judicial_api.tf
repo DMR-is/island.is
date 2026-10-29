@@ -73,6 +73,11 @@ module "judicial_api" {
     DD_VERSION = local.judicial_api_dd_version
 
     # --- service-defined env (api .ts) ---
+    # All public-host URLs use the APEX (local.judicial_host = local.domain),
+    # fronted by CloudFront which forwards the viewer Host to the ALB. The IDS
+    # client (AUTH_IDS_CLIENT_ID below) MUST have this apex redirect_uri + logout
+    # URI registered on identity-server.dev01.devland.is, else IDS rejects the
+    # callback. (See apex login fix / IDS-cutover.)
     AUTH_IDS_SCOPE                 = "openid profile offline_access"
     AUTH_IDS_CLIENT_ID             = "@rettarvorslugatt.is/rettarvorslugatt"
     IDENTITY_SERVER_ISSUER_URL     = "https://identity-server.dev01.devland.is"
