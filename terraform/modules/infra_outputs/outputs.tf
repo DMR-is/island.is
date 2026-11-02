@@ -76,6 +76,15 @@ output "secret_names" {
   value = data.terraform_remote_state.judicial_secrets.outputs.secret_names
 }
 
+# --- app secrets in SSM Parameter Store (logical key -> full SSM param name) ---
+# JUD-65: feed into the ecs_service `parameter_store_secret_names` map. Mirrors
+# secret_names (same logical keys) so a service is cut over SM->SSM by swapping
+# secretsmanager_secret_names[...] = secret_names[k]  ->
+# parameter_store_secret_names[...] = parameter_names[k].
+output "parameter_names" {
+  value = data.terraform_remote_state.judicial_ssm_secrets.outputs.parameter_names
+}
+
 output "xroad_secret_names" {
   value = data.terraform_remote_state.judicial_xroad_secrets.outputs.secret_names
 }

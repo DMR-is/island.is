@@ -53,8 +53,9 @@ module "judicial_scheduler" {
         TIME_TO_LIVE_MINUTES       = "30"
       }
 
-      secretsmanager_secret_names = {
-        BACKEND_ACCESS_TOKEN = module.infra_outputs.secret_names["shared/BACKEND_ACCESS_TOKEN"]
+      # JUD-65: migrated SM -> SSM Parameter Store (value already seeded).
+      parameter_store_secret_names = {
+        BACKEND_ACCESS_TOKEN = module.infra_outputs.parameter_names["shared/BACKEND_ACCESS_TOKEN"]
       }
 
       # Scheduler only queues messages; message-handler consumes them.

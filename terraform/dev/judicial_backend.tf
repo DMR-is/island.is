@@ -162,40 +162,10 @@ module "judicial_backend" {
     REDIS_NODES = "[]"
   }
 
+  # X-Road creds ONLY — PLACEHOLDER shells (judicial_xroad_secrets), still in
+  # Secrets Manager (deferred to the X-Road milestone). All other app secrets
+  # moved to SSM Parameter Store (JUD-65) — see parameter_store_secret_names.
   secretsmanager_secret_names = {
-    NOVA_URL                                 = module.infra_outputs.secret_names["backend/NOVA_URL"]
-    NOVA_USERNAME                            = module.infra_outputs.secret_names["backend/NOVA_USERNAME"]
-    NOVA_PASSWORD                            = module.infra_outputs.secret_names["backend/NOVA_PASSWORD"]
-    COURTS_MOBILE_NUMBERS                    = module.infra_outputs.secret_names["backend/COURTS_MOBILE_NUMBERS"]
-    COURTS_ASSISTANT_MOBILE_NUMBERS          = module.infra_outputs.secret_names["backend/COURTS_ASSISTANT_MOBILE_NUMBERS"]
-    COURTS_EMAILS                            = module.infra_outputs.secret_names["backend/COURTS_EMAILS"]
-    COURT_OF_APPEALS_ASSISTANT_EMAILS        = module.infra_outputs.secret_names["backend/COURT_OF_APPEALS_ASSISTANT_EMAILS"]
-    DOKOBIT_ACCESS_TOKEN                     = module.infra_outputs.secret_names["backend/DOKOBIT_ACCESS_TOKEN"]
-    EMAIL_FROM                               = module.infra_outputs.secret_names["backend/EMAIL_FROM"]
-    EMAIL_FROM_NAME                          = module.infra_outputs.secret_names["backend/EMAIL_FROM_NAME"]
-    EMAIL_REPLY_TO                           = module.infra_outputs.secret_names["backend/EMAIL_REPLY_TO"]
-    EMAIL_REPLY_TO_NAME                      = module.infra_outputs.secret_names["backend/EMAIL_REPLY_TO_NAME"]
-    POLICE_INSTITUTIONS_EMAILS               = module.infra_outputs.secret_names["backend/POLICE_INSTITUTIONS_EMAILS"]
-    PRISON_EMAIL                             = module.infra_outputs.secret_names["backend/PRISON_EMAIL"]
-    PRISON_ADMIN_EMAIL                       = module.infra_outputs.secret_names["backend/PRISON_ADMIN_EMAIL"]
-    PUBLIC_PROSECUTOR_CRIMINAL_RECORDS_EMAIL = module.infra_outputs.secret_names["backend/PUBLIC_PROSECUTOR_CRIMINAL_RECORDS_EMAIL"]
-    AUTH_JWT_SECRET                          = module.infra_outputs.secret_names["shared/AUTH_JWT_SECRET"]
-    ADMIN_USERS                              = module.infra_outputs.secret_names["backend/ADMIN_USERS"]
-    BACKEND_ACCESS_TOKEN                     = module.infra_outputs.secret_names["shared/BACKEND_ACCESS_TOKEN"]
-    CONTENTFUL_ACCESS_TOKEN                  = module.infra_outputs.secret_names["shared/CONTENTFUL_ACCESS_TOKEN"]
-    EVENT_URL                                = module.infra_outputs.secret_names["backend/EVENT_URL"]
-    ERROR_EVENT_URL                          = module.infra_outputs.secret_names["backend/ERROR_EVENT_URL"]
-    ARCHIVE_ENCRYPTION_KEY                   = module.infra_outputs.secret_names["backend/ARCHIVE_ENCRYPTION_KEY"]
-    COURT_ROBOT_CLIENT_ID                    = module.infra_outputs.secret_names["backend/COURT_ROBOT_CLIENT_ID"]
-    COURT_ROBOT_TENANT_ID                    = module.infra_outputs.secret_names["backend/COURT_ROBOT_TENANT_ID"]
-    COURT_ROBOT_CLIENT_SECRET                = module.infra_outputs.secret_names["backend/COURT_ROBOT_CLIENT_SECRET"]
-    COURT_ROBOT_USER                         = module.infra_outputs.secret_names["backend/COURT_ROBOT_USER"]
-    COURT_ROBOT_EMAIL                        = module.infra_outputs.secret_names["backend/COURT_ROBOT_EMAIL"]
-    CONFIGCAT_SDK_KEY                        = module.infra_outputs.secret_names["shared/CONFIGCAT_SDK_KEY"]
-    LAWYERS_ICELAND_API_KEY                  = module.infra_outputs.secret_names["shared/LAWYERS_ICELAND_API_KEY"]
-
-    # X-Road creds — PLACEHOLDER shells (judicial_xroad_secrets). Present so the
-    # backend boots; real values seeded in the X-Road milestone.
     XROAD_CLIENT_CERT        = module.infra_outputs.xroad_secret_names["backend/XROAD_CLIENT_CERT"]
     XROAD_CLIENT_KEY         = module.infra_outputs.xroad_secret_names["backend/XROAD_CLIENT_KEY"]
     XROAD_CLIENT_PEM         = module.infra_outputs.xroad_secret_names["backend/XROAD_CLIENT_PEM"]
@@ -203,9 +173,43 @@ module "judicial_backend" {
     XROAD_POLICE_API_KEY     = module.infra_outputs.xroad_secret_names["backend/XROAD_POLICE_API_KEY"]
   }
 
-  # DB_PASS lives in SSM Parameter Store (JM-34).
+  # JUD-65: backend app secrets migrated SM -> SSM Parameter Store (seeded
+  # out-of-band into /judicial/*). DB_PASS was already here (JM-34). The app
+  # reads all of these by env-var name, so no app/image change; the ecs_service
+  # module auto-grants the execution role ssm:GetParameters on these param ARNs.
   parameter_store_secret_names = {
     DB_PASS = "/ecs/judicial-system/DB_PASSWORD"
+
+    NOVA_URL                                 = module.infra_outputs.parameter_names["backend/NOVA_URL"]
+    NOVA_USERNAME                            = module.infra_outputs.parameter_names["backend/NOVA_USERNAME"]
+    NOVA_PASSWORD                            = module.infra_outputs.parameter_names["backend/NOVA_PASSWORD"]
+    COURTS_MOBILE_NUMBERS                    = module.infra_outputs.parameter_names["backend/COURTS_MOBILE_NUMBERS"]
+    COURTS_ASSISTANT_MOBILE_NUMBERS          = module.infra_outputs.parameter_names["backend/COURTS_ASSISTANT_MOBILE_NUMBERS"]
+    COURTS_EMAILS                            = module.infra_outputs.parameter_names["backend/COURTS_EMAILS"]
+    COURT_OF_APPEALS_ASSISTANT_EMAILS        = module.infra_outputs.parameter_names["backend/COURT_OF_APPEALS_ASSISTANT_EMAILS"]
+    DOKOBIT_ACCESS_TOKEN                     = module.infra_outputs.parameter_names["backend/DOKOBIT_ACCESS_TOKEN"]
+    EMAIL_FROM                               = module.infra_outputs.parameter_names["backend/EMAIL_FROM"]
+    EMAIL_FROM_NAME                          = module.infra_outputs.parameter_names["backend/EMAIL_FROM_NAME"]
+    EMAIL_REPLY_TO                           = module.infra_outputs.parameter_names["backend/EMAIL_REPLY_TO"]
+    EMAIL_REPLY_TO_NAME                      = module.infra_outputs.parameter_names["backend/EMAIL_REPLY_TO_NAME"]
+    POLICE_INSTITUTIONS_EMAILS               = module.infra_outputs.parameter_names["backend/POLICE_INSTITUTIONS_EMAILS"]
+    PRISON_EMAIL                             = module.infra_outputs.parameter_names["backend/PRISON_EMAIL"]
+    PRISON_ADMIN_EMAIL                       = module.infra_outputs.parameter_names["backend/PRISON_ADMIN_EMAIL"]
+    PUBLIC_PROSECUTOR_CRIMINAL_RECORDS_EMAIL = module.infra_outputs.parameter_names["backend/PUBLIC_PROSECUTOR_CRIMINAL_RECORDS_EMAIL"]
+    AUTH_JWT_SECRET                          = module.infra_outputs.parameter_names["shared/AUTH_JWT_SECRET"]
+    ADMIN_USERS                              = module.infra_outputs.parameter_names["backend/ADMIN_USERS"]
+    BACKEND_ACCESS_TOKEN                     = module.infra_outputs.parameter_names["shared/BACKEND_ACCESS_TOKEN"]
+    CONTENTFUL_ACCESS_TOKEN                  = module.infra_outputs.parameter_names["shared/CONTENTFUL_ACCESS_TOKEN"]
+    EVENT_URL                                = module.infra_outputs.parameter_names["backend/EVENT_URL"]
+    ERROR_EVENT_URL                          = module.infra_outputs.parameter_names["backend/ERROR_EVENT_URL"]
+    ARCHIVE_ENCRYPTION_KEY                   = module.infra_outputs.parameter_names["backend/ARCHIVE_ENCRYPTION_KEY"]
+    COURT_ROBOT_CLIENT_ID                    = module.infra_outputs.parameter_names["backend/COURT_ROBOT_CLIENT_ID"]
+    COURT_ROBOT_TENANT_ID                    = module.infra_outputs.parameter_names["backend/COURT_ROBOT_TENANT_ID"]
+    COURT_ROBOT_CLIENT_SECRET                = module.infra_outputs.parameter_names["backend/COURT_ROBOT_CLIENT_SECRET"]
+    COURT_ROBOT_USER                         = module.infra_outputs.parameter_names["backend/COURT_ROBOT_USER"]
+    COURT_ROBOT_EMAIL                        = module.infra_outputs.parameter_names["backend/COURT_ROBOT_EMAIL"]
+    CONFIGCAT_SDK_KEY                        = module.infra_outputs.parameter_names["shared/CONFIGCAT_SDK_KEY"]
+    LAWYERS_ICELAND_API_KEY                  = module.infra_outputs.parameter_names["shared/LAWYERS_ICELAND_API_KEY"]
   }
 
   # Task role (replaces island.is IRSA): S3 upload bucket + SQS + SES (JM-35).
