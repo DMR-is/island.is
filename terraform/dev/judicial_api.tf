@@ -95,14 +95,18 @@ module "judicial_api" {
     REDIS_NODES = "[]"
   }
 
-  secretsmanager_secret_names = {
-    AUTH_JWT_SECRET          = module.infra_outputs.secret_names["shared/AUTH_JWT_SECRET"]
-    BACKEND_ACCESS_TOKEN     = module.infra_outputs.secret_names["shared/BACKEND_ACCESS_TOKEN"]
-    CONTENTFUL_ACCESS_TOKEN  = module.infra_outputs.secret_names["shared/CONTENTFUL_ACCESS_TOKEN"]
-    AUTH_IDS_SECRET          = module.infra_outputs.secret_names["api/AUTH_IDS_SECRET"]
-    LAWYERS_ICELAND_API_KEY  = module.infra_outputs.secret_names["shared/LAWYERS_ICELAND_API_KEY"]
-    AUTH_TOKEN_SECRET_BASE64 = module.infra_outputs.secret_names["api/AUTH_TOKEN_SECRET_BASE64"]
-    CONFIGCAT_SDK_KEY        = module.infra_outputs.secret_names["shared/CONFIGCAT_SDK_KEY"]
+  # JUD-65: api migrated SM -> SSM Parameter Store. Values seeded out-of-band
+  # into /judicial/* (judicial_ssm_secrets unit); the app reads them by env-var
+  # name, so no app/image change. The ecs_service module auto-grants the
+  # execution role ssm:GetParameters on these param ARNs.
+  parameter_store_secret_names = {
+    AUTH_JWT_SECRET          = module.infra_outputs.parameter_names["shared/AUTH_JWT_SECRET"]
+    BACKEND_ACCESS_TOKEN     = module.infra_outputs.parameter_names["shared/BACKEND_ACCESS_TOKEN"]
+    CONTENTFUL_ACCESS_TOKEN  = module.infra_outputs.parameter_names["shared/CONTENTFUL_ACCESS_TOKEN"]
+    AUTH_IDS_SECRET          = module.infra_outputs.parameter_names["api/AUTH_IDS_SECRET"]
+    LAWYERS_ICELAND_API_KEY  = module.infra_outputs.parameter_names["shared/LAWYERS_ICELAND_API_KEY"]
+    AUTH_TOKEN_SECRET_BASE64 = module.infra_outputs.parameter_names["api/AUTH_TOKEN_SECRET_BASE64"]
+    CONFIGCAT_SDK_KEY        = module.infra_outputs.parameter_names["shared/CONFIGCAT_SDK_KEY"]
   }
 
   # Task role: audit trail writes to CloudWatch (audit_log.tf).

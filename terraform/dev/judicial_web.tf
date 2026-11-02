@@ -96,12 +96,16 @@ module "judicial_web" {
     ENVIRONMENT      = local.env
   }
 
-  secretsmanager_secret_names = {
-    DD_LOGS_CLIENT_TOKEN      = module.infra_outputs.secret_names["shared/DD_LOGS_CLIENT_TOKEN"]
-    NATIONAL_REGISTRY_API_KEY = module.infra_outputs.secret_names["web/NATIONAL_REGISTRY_API_KEY"]
-    LAWYERS_ICELAND_API_KEY   = module.infra_outputs.secret_names["shared/LAWYERS_ICELAND_API_KEY"]
-    SUPPORT_EMAIL             = module.infra_outputs.secret_names["web/SUPPORT_EMAIL"]
-    CONFIGCAT_SDK_KEY         = module.infra_outputs.secret_names["shared/CONFIGCAT_SDK_KEY"]
-    AUTH_JWT_SECRET           = module.infra_outputs.secret_names["shared/AUTH_JWT_SECRET"]
+  # JUD-65 pilot: web migrated SM -> SSM Parameter Store. Values seeded
+  # out-of-band into /judicial/* (judicial_ssm_secrets unit); the app still reads
+  # them by env-var name, so no app/image change. The ecs_service module
+  # auto-grants the execution role ssm:GetParameters on these param ARNs.
+  parameter_store_secret_names = {
+    DD_LOGS_CLIENT_TOKEN      = module.infra_outputs.parameter_names["shared/DD_LOGS_CLIENT_TOKEN"]
+    NATIONAL_REGISTRY_API_KEY = module.infra_outputs.parameter_names["web/NATIONAL_REGISTRY_API_KEY"]
+    LAWYERS_ICELAND_API_KEY   = module.infra_outputs.parameter_names["shared/LAWYERS_ICELAND_API_KEY"]
+    SUPPORT_EMAIL             = module.infra_outputs.parameter_names["web/SUPPORT_EMAIL"]
+    CONFIGCAT_SDK_KEY         = module.infra_outputs.parameter_names["shared/CONFIGCAT_SDK_KEY"]
+    AUTH_JWT_SECRET           = module.infra_outputs.parameter_names["shared/AUTH_JWT_SECRET"]
   }
 }

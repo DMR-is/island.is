@@ -66,8 +66,10 @@ module "judicial_message_handler" {
     SQS_REGION                 = local.aws_region
   }
 
-  secretsmanager_secret_names = {
-    BACKEND_ACCESS_TOKEN = module.infra_outputs.secret_names["shared/BACKEND_ACCESS_TOKEN"]
+  # JUD-65: migrated SM -> SSM Parameter Store (values already seeded). The
+  # worker module auto-grants the exec role ssm:GetParameters on these ARNs.
+  parameter_store_secret_names = {
+    BACKEND_ACCESS_TOKEN = module.infra_outputs.parameter_names["shared/BACKEND_ACCESS_TOKEN"]
   }
 }
 

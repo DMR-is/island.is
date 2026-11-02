@@ -88,6 +88,18 @@ data "terraform_remote_state" "judicial_xroad_secrets" {
   }
 }
 
+# JUD-65 — app secrets migrated to SSM Parameter Store (shell params). Mirrors
+# judicial_secrets (Secrets Manager); exposed as `parameter_names` below. During
+# the SM->SSM migration both states exist; services cut over one at a time.
+data "terraform_remote_state" "judicial_ssm_secrets" {
+  backend = "s3"
+  config = {
+    bucket = var.state_bucket_name
+    key    = "judicial_ssm_secrets/terraform.tfstate"
+    region = var.aws_region
+  }
+}
+
 data "terraform_remote_state" "judicial_upload_bucket" {
   backend = "s3"
   config = {

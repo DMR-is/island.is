@@ -27,8 +27,8 @@ locals {
       image_tag    = aws_ssm_parameter.image_tag["xrd-api"].insecure_value
       extra_env    = {}
       # xrd-api posts failed calls to this URL (env.required, no default).
-      extra_secrets = {
-        ERROR_EVENT_URL = module.infra_outputs.secret_names["backend/ERROR_EVENT_URL"]
+      extra_parameters = {
+        ERROR_EVENT_URL = module.infra_outputs.parameter_names["backend/ERROR_EVENT_URL"]
       }
     }
     digital-mailbox-api = {
@@ -39,7 +39,7 @@ locals {
       extra_env = {
         IDENTITY_SERVER_ISSUER_URL = "https://identity-server.dev01.devland.is"
       }
-      extra_secrets = {}
+      extra_parameters = {}
     }
   }
 }
@@ -109,9 +109,11 @@ module "judicial_xroad_api" {
     AUDIT_TRAIL_REGION             = local.aws_region
   }, each.value.extra_env)
 
-  secretsmanager_secret_names = merge({
-    BACKEND_ACCESS_TOKEN = module.infra_outputs.secret_names["shared/BACKEND_ACCESS_TOKEN"]
-  }, each.value.extra_secrets)
+  # JUD-65: migrated SM -> SSM Parameter Store (values already seeded). The
+  # worker module auto-grants the exec role ssm:GetParameters on these ARNs.
+  parameter_store_secret_names = merge({
+    BACKEND_ACCESS_TOKEN = module.infra_outputs.parameter_names["shared/BACKEND_ACCESS_TOKEN"]
+  }, each.value.extra_parameters)
 }
 
 # ecs_service_worker has no tasks_iam_role_statements input; attach to its role.
