@@ -162,17 +162,6 @@ module "judicial_backend" {
     REDIS_NODES = "[]"
   }
 
-  # X-Road creds ONLY — PLACEHOLDER shells (judicial_xroad_secrets), still in
-  # Secrets Manager (deferred to the X-Road milestone). All other app secrets
-  # moved to SSM Parameter Store (JUD-65) — see parameter_store_secret_names.
-  secretsmanager_secret_names = {
-    XROAD_CLIENT_CERT        = module.infra_outputs.xroad_secret_names["backend/XROAD_CLIENT_CERT"]
-    XROAD_CLIENT_KEY         = module.infra_outputs.xroad_secret_names["backend/XROAD_CLIENT_KEY"]
-    XROAD_CLIENT_PEM         = module.infra_outputs.xroad_secret_names["backend/XROAD_CLIENT_PEM"]
-    XROAD_COURTS_CREDENTIALS = module.infra_outputs.xroad_secret_names["backend/XROAD_COURTS_CREDENTIALS"]
-    XROAD_POLICE_API_KEY     = module.infra_outputs.xroad_secret_names["backend/XROAD_POLICE_API_KEY"]
-  }
-
   # JUD-65: backend app secrets migrated SM -> SSM Parameter Store (seeded
   # out-of-band into /judicial/*). DB_PASS was already here (JM-34). The app
   # reads all of these by env-var name, so no app/image change; the ecs_service
@@ -210,6 +199,12 @@ module "judicial_backend" {
     COURT_ROBOT_EMAIL                        = module.infra_outputs.parameter_names["backend/COURT_ROBOT_EMAIL"]
     CONFIGCAT_SDK_KEY                        = module.infra_outputs.parameter_names["shared/CONFIGCAT_SDK_KEY"]
     LAWYERS_ICELAND_API_KEY                  = module.infra_outputs.parameter_names["shared/LAWYERS_ICELAND_API_KEY"]
+
+    XROAD_CLIENT_CERT        = module.infra_outputs.parameter_names["backend/XROAD_CLIENT_CERT"]
+    XROAD_CLIENT_KEY         = module.infra_outputs.parameter_names["backend/XROAD_CLIENT_KEY"]
+    XROAD_CLIENT_PEM         = module.infra_outputs.parameter_names["backend/XROAD_CLIENT_PEM"]
+    XROAD_COURTS_CREDENTIALS = module.infra_outputs.parameter_names["backend/XROAD_COURTS_CREDENTIALS"]
+    XROAD_POLICE_API_KEY     = module.infra_outputs.parameter_names["backend/XROAD_POLICE_API_KEY"]
   }
 
   # Task role (replaces island.is IRSA): S3 upload bucket + SQS + SES (JM-35).
