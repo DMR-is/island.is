@@ -1,4 +1,3 @@
-import type { AppContext, AppProps } from 'next/app'
 import App from 'next/app'
 import Head from 'next/head'
 import { ApolloProvider } from '@apollo/client'
@@ -16,7 +15,7 @@ import {
   UserProvider,
   ViewportProvider,
 } from '@island.is/judicial-system-web/src/components'
-import { GET_TRANSLATIONS, LocaleProvider } from '@island.is/localization'
+import { LocaleProvider } from '@island.is/localization'
 import { userMonitoring } from '@island.is/user-monitoring'
 
 if (typeof window !== 'undefined') {
@@ -32,73 +31,9 @@ if (typeof window !== 'undefined') {
   }
 }
 
-// Local types for the getTranslations GraphQL query. These were previously
-// imported from the island.is API gateway schema (@island.is/api/schema),
-// which is pruned out of the standalone judicial-system repo. The shape
-// mirrors the gateway resolver: getTranslations(input: GetTranslationsInput!)
-// returns a flat namespace->string map.
-interface GetTranslationsInput {
-  namespaces: string[]
-  lang: string
-}
-
-interface QueryGetTranslationsArgs {
-  input: GetTranslationsInput
-}
-
-interface Query {
-  getTranslations: Record<string, string>
-}
-
-const getTranslationStrings = (apolloClient: typeof client) => {
-  if (!apolloClient) {
-    return null
-  }
-  return apolloClient
-    .query<Query, QueryGetTranslationsArgs>({
-      query: GET_TRANSLATIONS,
-      variables: {
-        input: {
-          namespaces: [
-            'judicial.system.core',
-            'judicial.system.restriction_cases',
-            'judicial.system.investigation_cases',
-            'judicial.system.indictments',
-          ],
-          lang: 'is',
-        },
-      },
-    })
-    .then((content) => {
-      return content?.data?.getTranslations
-    })
-    .catch((error) => {
-      console.error(`Error fetching translations: ${error}`)
-    })
-}
-
-interface Props extends AppProps {
-  translations: { [key: string]: string }
-}
-
-class JudicialSystemApplication extends App<Props> {
-  static async getInitialProps(appContext: AppContext) {
-    const { ctx } = appContext
-    const pageProps = await App.getInitialProps(appContext)
-    const customContext = {
-      ...ctx,
-      apolloClient: client,
-    }
-    const translations = await getTranslationStrings(customContext.apolloClient)
-
-    return {
-      ...pageProps,
-      translations,
-    }
-  }
-
+class JudicialSystemApplication extends App {
   render() {
-    const { Component, pageProps, translations, router } = this.props
+    const { Component, pageProps, router } = this.props
 
     return (
       <>
@@ -117,7 +52,7 @@ class JudicialSystemApplication extends App<Props> {
           <ApolloProvider client={client}>
             <FeatureProvider>
               <UserProvider>
-                <LocaleProvider locale="is" messages={translations || {}}>
+                <LocaleProvider locale="is" messages={{}}>
                   <LawyerRegistryProvider>
                     <ServiceInterruptionBanner />
                     <FormProvider>

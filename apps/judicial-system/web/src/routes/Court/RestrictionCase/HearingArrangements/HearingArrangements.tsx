@@ -1,5 +1,4 @@
 import { useCallback, useContext, useMemo, useState } from 'react'
-import { useIntl } from 'react-intl'
 import router from 'next/router'
 
 import { Box, Text, Tooltip } from '@island.is/island-ui/core'
@@ -66,7 +65,6 @@ export const HearingArrangements = () => {
     isSendingNotification,
     sendNotificationError,
   } = useCase()
-  const { formatMessage } = useIntl()
   const {
     courtDate,
     courtDateHasChanged,
@@ -154,9 +152,7 @@ export const HearingArrangements = () => {
       onNavigationTo={handleNavigationTo}
       isValid={stepIsValid}
     >
-      <PageHeader
-        title={formatMessage(titles.court.restrictionCases.hearingArrangements)}
-      />
+      <PageHeader title={titles.court.restrictionCases.hearingArrangements} />
       <FormContentContainer>
         <ArraignmentAlert />
         <PageTitle>{m.title}</PageTitle>
@@ -179,14 +175,10 @@ export const HearingArrangements = () => {
         </Box>
         <Box component="section" marginBottom={8} className={stack({ gap: 3 })}>
           <SectionHeading
-            title={formatMessage(
-              defenderInfo.restrictionCases.sections.defender.title,
-            )}
+            title={defenderInfo.restrictionCases.sections.defender.title}
             tooltip={
               <Tooltip
-                text={formatMessage(
-                  defenderInfo.restrictionCases.sections.defender.tooltip,
-                )}
+                text={defenderInfo.restrictionCases.sections.defender.tooltip}
                 placement="right"
               />
             }
@@ -277,7 +269,7 @@ export const HearingArrangements = () => {
           ]}
           errorMessage={
             isModalDeferring && sendNotificationError
-              ? formatMessage(errors.sendNotification)
+              ? errors.sendNotification
               : undefined
           }
         />

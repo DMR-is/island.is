@@ -14,6 +14,7 @@
 #   scripts/dmr/upstream-sync.sh --apply         # replay relevant commits
 #   scripts/dmr/upstream-sync.sh --apply --continue   # after resolving a conflict
 #   scripts/dmr/upstream-sync.sh --no-fetch      # skip `git fetch upstream`
+#   scripts/dmr/upstream-sync.sh --apply --continue --skip <sha>  # drop a commit
 #
 set -euo pipefail
 
@@ -38,6 +39,7 @@ MODE="report"
 DO_FETCH=1
 CONTINUE=0
 BASE_OVERRIDE=""
+SKIP_SHAS=()
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -45,7 +47,8 @@ while [ $# -gt 0 ]; do
     --continue) CONTINUE=1 ;;
     --no-fetch) DO_FETCH=0 ;;
     --base)     shift; BASE_OVERRIDE="${1:-}" ;;
-    -h|--help)  sed -n '2,19p' "$0"; exit 0 ;;
+    --skip)     shift; SKIP_SHAS+=("$(git rev-parse "${1:?--skip needs a sha}")") ;;
+    -h|--help)  sed -n '2,20p' "$0"; exit 0 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
   shift
@@ -282,6 +285,11 @@ do_apply() {
   for sha in "${RELEVANT[@]}"; do
     # idempotent: skip if an equivalent subject already landed on this branch
     if grep -qxF -- "$(git log -1 --format='%s' "$sha")" <<<"$landed"; then
+      continue
+    fi
+    # explicit --skip (e.g. commit needs a pruned lib)
+    if [[ " ${SKIP_SHAS[*]:-} " == *" $sha "* ]]; then
+      say ">> skip   $(git log -1 --format='%h %s' "$sha")"
       continue
     fi
     say ">> replay $(git log -1 --format='%h %s' "$sha")"
