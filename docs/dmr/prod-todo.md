@@ -31,12 +31,15 @@ Dev points at `ss.xroad.dev.dmr-dev.cloud` (`terraform/dev/judicial_backend.tf`)
 
 Dev status, cutover and IPs: `docs/dmr/xroad.md`.
 
-- [ ] Pick the prod member code (island.is prod used `5804170510`, not `10014`). Instance path `/r1/IS`.
-- [ ] Register the `Judicial-Client` subsystem on the prod SS. Backend uses `XROAD_CLIENT_ID=IS/GOV/<member>/Judicial-Client` (dev: `IS-DEV/GOV/10014/Judicial-Client`).
-- [ ] Register the `Judicial-Protected` subsystem on the prod SS. It publishes xrd-api (`judicial-system-v2`) and digital-mailbox-api (dev: `IS-DEV:GOV:10014:Judicial-Protected`).
+- [x] Prod member code: `5804170510`. Instance path `/r1/IS`.
+- [ ] `IS:GOV:5804170510:Judicial-Client` added on prod SS; registration in progress (2026-11-02).
+      Backend: `XROAD_CLIENT_ID=IS/GOV/5804170510/Judicial-Client`. Then upload client cert.
+- [ ] `IS:GOV:5804170510:Judicial-Protected` added on prod SS; registration in progress (2026-11-02).
+      Then publish xrd-api (`judicial-system-v2`) and digital-mailbox-api under it.
 - [ ] Prod xroad config: courts egress on 5500/5577 (PR #88), internal NLB 5500 listener for sakaskra self-call (PR #89),
       prod RLS IPs `194.105.255.131`, `194.105.255.132`.
-- [ ] Client TLS cert / key, if the SS requires mTLS, stored in Secrets Manager.
+- [x] Client cert, key and SS TLS pem in Secrets Manager (2026-11-02).
+      `judicial/backend/XROAD_CLIENT_{CERT,KEY,PEM}`, account `141145165006`.
 - [ ] Access rights on the providers' side for the new client: courts (`10019`, `JusticePortal-v1`),
       police (`10005`, `rettarvarsla-v1`), DMR criminal record (`10014`, `sakaskra`).
 - [ ] Update `XROAD_BASE_PATH`, `XROAD_BASE_PATH_WITH_ENV`, `XROAD_TLS_BASE_PATH`,
