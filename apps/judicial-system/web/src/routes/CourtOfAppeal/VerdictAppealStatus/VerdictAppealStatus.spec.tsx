@@ -1,7 +1,13 @@
 import type { FC, PropsWithChildren } from 'react'
 import { useState } from 'react'
 import addDays from 'date-fns/addDays'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import {
+  configure,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import {
@@ -26,6 +32,9 @@ import {
 } from '@island.is/judicial-system-web/src/utils/testHelpers'
 
 import VerdictAppealStatus from './VerdictAppealStatus'
+
+// Slow CI runners need more than the 1s default.
+configure({ asyncUtilTimeout: 5000 })
 
 const mockPush = jest.fn()
 const mockCreateAppealCourtSession = jest.fn()
