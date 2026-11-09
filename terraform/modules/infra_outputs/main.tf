@@ -70,7 +70,12 @@ data "terraform_remote_state" "services_sg" {
   }
 }
 
+# Legacy Secrets Manager app-secret units. Present in dev; absent in prod (prod
+# keeps all app secrets, incl. XROAD_*, in SSM Parameter Store). Guarded by
+# var.legacy_secrets_manager_enabled so the prod root does not read state that
+# does not exist. See the judicial-system prod services (JUD-69).
 data "terraform_remote_state" "judicial_secrets" {
+  count   = var.legacy_secrets_manager_enabled ? 1 : 0
   backend = "s3"
   config = {
     bucket = var.state_bucket_name
@@ -80,6 +85,7 @@ data "terraform_remote_state" "judicial_secrets" {
 }
 
 data "terraform_remote_state" "judicial_xroad_secrets" {
+  count   = var.legacy_secrets_manager_enabled ? 1 : 0
   backend = "s3"
   config = {
     bucket = var.state_bucket_name
