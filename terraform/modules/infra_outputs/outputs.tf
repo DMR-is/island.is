@@ -72,8 +72,10 @@ output "rds_cluster_reader_endpoint" {
 }
 
 # --- secrets (logical key -> full Secrets Manager name) ---
+# Empty in prod (legacy_secrets_manager_enabled = false): prod has no Secrets
+# Manager app-secret unit. Dev returns the real map.
 output "secret_names" {
-  value = data.terraform_remote_state.judicial_secrets.outputs.secret_names
+  value = var.legacy_secrets_manager_enabled ? data.terraform_remote_state.judicial_secrets[0].outputs.secret_names : {}
 }
 
 # --- app secrets in SSM Parameter Store (logical key -> full SSM param name) ---
@@ -86,7 +88,7 @@ output "parameter_names" {
 }
 
 output "xroad_secret_names" {
-  value = data.terraform_remote_state.judicial_xroad_secrets.outputs.secret_names
+  value = var.legacy_secrets_manager_enabled ? data.terraform_remote_state.judicial_xroad_secrets[0].outputs.secret_names : {}
 }
 
 # --- S3 upload bucket ---

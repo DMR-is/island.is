@@ -1,0 +1,184 @@
+# GitHub Actions -> AWS login (OIDC) for the judicial PROD account.
+#
+# Mirrors the dev github_oidc.tf in the judicial prod account (141145165006):
+# a GitHub OIDC provider plus one CI role that only DMR-is/island.is workflows
+# can assume. The role has ReadOnlyAccess (so CI can `terraform plan`) plus
+# scoped deploy rights so CI can `terraform apply` the ECS services.
+#
+# ECR push lives in the shared account (592944621100) and is granted there by
+# the infrastructure repo's github-ci role, not by this file.
+
+locals {
+  github_org  = "DMR-is"
+  github_repo = "island.is"
+
+  # GitHub's numeric ids for the org and repo. This repo has GitHub's
+  # "immutable subject" OIDC setting on, so the sub claim carries them:
+  #   repo:DMR-is@151839245/island.is@1387616580:<ref>
+  # Look them up with:
+  #   gh api repos/DMR-is/island.is/actions/oidc/customization/sub
+  github_org_id  = "151839245"
+  github_repo_id = "1387616580"
+}
+
+resource "aws_iam_openid_connect_provider" "github" {
+  url            = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
+  # AWS trusts GitHub's OIDC CA directly; no thumbprint needed (aws >= 5.81).
+}
+
+data "aws_iam_policy_document" "github_ci_trust" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.github.arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringLike"
+      variable = "token.actions.githubusercontent.com:sub"
+      # First line: classic subject format. Second: immutable subject format
+      # (repo:<org>@<id>/<repo>@<id>:...), which this repo sends today.
+      values = [
+        "repo:${local.github_org}/${local.github_repo}:*",
+        "repo:${local.github_org}@${local.github_org_id}/${local.github_repo}@${local.github_repo_id}:*",
+      ]
+    }
+  }
+}
+
+resource "aws_iam_role" "github_ci" {
+  name               = "${local.env}-judicial-system-github-ci-role"
+  assume_role_policy = data.aws_iam_policy_document.github_ci_trust.json
+}
+
+resource "aws_iam_role_policy_attachment" "github_ci_readonly" {
+  role       = aws_iam_role.github_ci.name
+  policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
+}
+
+# `terraform plan` must lock and read the app state key in the infra state bucket.
+data "aws_iam_policy_document" "github_ci_state" {
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+    resources = ["arn:aws:s3:::${local.infra_state_bucket}/services/judicial-system/*"]
+  }
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
+    resources = ["arn:aws:s3:::${local.infra_state_bucket}"]
+  }
+}
+
+resource "aws_iam_role_policy" "github_ci_state" {
+  name   = "terraform-state"
+  role   = aws_iam_role.github_ci.id
+  policy = data.aws_iam_policy_document.github_ci_state.json
+}
+
+# `terraform apply` of this root: everything the ecs_service module manages.
+# IAM writes are limited to the module's judicial-system-* roles and policies.
+data "aws_iam_policy_document" "github_ci_deploy" {
+  statement {
+    sid    = "ServiceResources"
+    effect = "Allow"
+    actions = [
+      "ecs:*",
+      "elasticloadbalancing:*",
+      "application-autoscaling:*",
+      "codedeploy:*",
+      "servicediscovery:*",
+      "logs:*",
+      "cloudwatch:PutMetricAlarm",
+      "cloudwatch:DeleteAlarms",
+      "route53:ChangeResourceRecordSets",
+      "route53:GetChange",
+      "ec2:CreateSecurityGroup",
+      "ec2:DeleteSecurityGroup",
+      "ec2:AuthorizeSecurityGroupIngress",
+      "ec2:AuthorizeSecurityGroupEgress",
+      "ec2:RevokeSecurityGroupIngress",
+      "ec2:RevokeSecurityGroupEgress",
+      "ec2:ModifySecurityGroupRules",
+      "ec2:UpdateSecurityGroupRuleDescriptionsIngress",
+      "ec2:UpdateSecurityGroupRuleDescriptionsEgress",
+      "ec2:CreateTags",
+      "ec2:DeleteTags",
+      # scheduler (scheduled_ecs_tasks): EventBridge rule -> Step Functions -> SNS.
+      "events:*",
+      "states:*",
+      "sns:*",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "ServiceIam"
+    effect = "Allow"
+    actions = [
+      "iam:CreateRole",
+      "iam:DeleteRole",
+      "iam:UpdateRole",
+      "iam:UpdateAssumeRolePolicy",
+      "iam:TagRole",
+      "iam:UntagRole",
+      "iam:AttachRolePolicy",
+      "iam:DetachRolePolicy",
+      "iam:PutRolePolicy",
+      "iam:DeleteRolePolicy",
+      "iam:CreatePolicy",
+      "iam:DeletePolicy",
+      "iam:CreatePolicyVersion",
+      "iam:DeletePolicyVersion",
+      "iam:TagPolicy",
+      "iam:UntagPolicy",
+    ]
+    resources = [
+      "arn:aws:iam::*:role/judicial-system-*",
+      "arn:aws:iam::*:policy/judicial-system-*",
+    ]
+  }
+
+  # CI writes the deployed image tag per service (image_tags.tf) before apply.
+  statement {
+    sid    = "ImageTagParameters"
+    effect = "Allow"
+    actions = [
+      "ssm:PutParameter",
+      "ssm:AddTagsToResource",
+      "ssm:RemoveTagsFromResource",
+    ]
+    resources = ["arn:aws:ssm:*:*:parameter/judicial-system/*"]
+  }
+
+  statement {
+    sid       = "PassServiceRoles"
+    effect    = "Allow"
+    actions   = ["iam:PassRole"]
+    resources = ["arn:aws:iam::*:role/judicial-system-*"]
+    condition {
+      test     = "StringEquals"
+      variable = "iam:PassedToService"
+      values = [
+        "ecs-tasks.amazonaws.com", "codedeploy.amazonaws.com", "application-autoscaling.amazonaws.com",
+        "states.amazonaws.com", "events.amazonaws.com",
+      ]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "github_ci_deploy" {
+  name   = "terraform-deploy"
+  role   = aws_iam_role.github_ci.id
+  policy = data.aws_iam_policy_document.github_ci_deploy.json
+}
