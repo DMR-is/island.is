@@ -10,15 +10,23 @@
 # placeholders in the prod_<sha>_<rand> shape (dd version = split("_", tag)[1]);
 # the first CI run on the prod ref overwrites them before it applies.
 #
-# Scope: JUD-69 covers web/api/backend only. The other judicial services
-# (message-handler, scheduler, xrd-api, digital-mailbox-api) get their image-tag
-# params when those services are added to prod (separate tickets), mirroring dev.
+# Scope: JUD-69 covered web/api/backend. JUD-75 adds the two internal X-Road
+# services (xrd-api, digital-mailbox-api); their image-tag params are seeded here
+# too, mirroring dev. message-handler/scheduler remain for a later prod ticket.
 
 locals {
   initial_image_tags = {
     web     = "prod_bootstrap_none"
     api     = "prod_bootstrap_none"
     backend = "prod_bootstrap_none"
+
+    # JUD-75: internal X-Road ECS services. The prod release pipeline already
+    # built and pushed these images (judicial-v1.0.1); seed the live tag so the
+    # services come up healthy on first create instead of a bootstrap placeholder.
+    # Only read on first create — ignore_changes below hands ongoing ownership to
+    # CI, exactly like web/api/backend.
+    xrd-api             = "prod_1.0.1_7c7236c"
+    digital-mailbox-api = "prod_1.0.1_7c7236c"
   }
 
   judicial_web_image_tag     = aws_ssm_parameter.image_tag["web"].insecure_value
