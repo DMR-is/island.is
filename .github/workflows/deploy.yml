@@ -51,7 +51,7 @@ jobs:
         with:
           terraform_version: ${{ steps.v.outputs.version }}
 
-      # Prod role comes from terraform/prod/github_oidc.tf (not built yet).
+      # Roles come from terraform/<env>/github_oidc.tf.
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ fromJSON('{"dev":"arn:aws:iam::640538430394:role/dev-judicial-system-github-ci-role","prod":"arn:aws:iam::141145165006:role/prod-judicial-system-github-ci-role"}')[inputs.environment] }}
