@@ -124,6 +124,7 @@ module "judicial_backend" {
     # --- service-defined env (backend .ts), PROD values (island.is prod chart) ---
     DOKOBIT_URL                             = "https://ws.dokobit.com"
     EMAIL_REGION                            = "eu-west-1"
+    EMAIL_USE_WHITELIST                     = "false"
     S3_REGION                               = "eu-west-1"
     S3_BUCKET                               = module.infra_outputs.upload_bucket_id
     S3_TIME_TO_LIVE_POST                    = "15"
