@@ -11,8 +11,11 @@
 # the first CI run on the prod ref overwrites them before it applies.
 #
 # Scope: JUD-69 covered web/api/backend. JUD-75 adds the two internal X-Road
-# services (xrd-api, digital-mailbox-api); their image-tag params are seeded here
-# too, mirroring dev. message-handler/scheduler remain for a later prod ticket.
+# services (xrd-api, digital-mailbox-api) and JUD-74 adds message-handler (the
+# SQS worker); their image-tag params are seeded here too, mirroring dev. Each
+# image was already built and pushed by the prod release pipeline, so the live
+# tag is seeded so the services come up healthy on first create. scheduler
+# remains for a later prod ticket.
 
 locals {
   initial_image_tags = {
@@ -27,11 +30,15 @@ locals {
     # CI, exactly like web/api/backend.
     xrd-api             = "prod_1.0.1_7c7236c"
     digital-mailbox-api = "prod_1.0.1_7c7236c"
+
+    # JUD-74: SQS worker. Seed the live release tag (image already in ECR).
+    message-handler = "prod_1.0.1_7c7236c"
   }
 
-  judicial_web_image_tag     = aws_ssm_parameter.image_tag["web"].insecure_value
-  judicial_api_image_tag     = aws_ssm_parameter.image_tag["api"].insecure_value
-  judicial_backend_image_tag = aws_ssm_parameter.image_tag["backend"].insecure_value
+  judicial_web_image_tag             = aws_ssm_parameter.image_tag["web"].insecure_value
+  judicial_api_image_tag             = aws_ssm_parameter.image_tag["api"].insecure_value
+  judicial_backend_image_tag         = aws_ssm_parameter.image_tag["backend"].insecure_value
+  judicial_message_handler_image_tag = aws_ssm_parameter.image_tag["message-handler"].insecure_value
 }
 
 resource "aws_ssm_parameter" "image_tag" {
