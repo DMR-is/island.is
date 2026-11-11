@@ -1,0 +1,73 @@
+name: Deploy
+
+# Shared deploy for dev (ci.yml) and prod (release.yml, deploy-prod.yml).
+# Writes each image tag to SSM /judicial-system/<env>/<svc>/image-tag,
+# then applies terraform/<env>. One job: all services share one state.
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: dev or prod
+        type: string
+        required: true
+      tag:
+        description: Image tag to deploy
+        type: string
+        required: true
+      images:
+        description: JSON array of image names
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: eu-west-1
+
+jobs:
+  deploy:
+    name: deploy (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # GitHub environment; prod has required reviewers.
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: terraform-${{ inputs.environment }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: terraform/${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read terraform version
+        id: v
+        run: echo "version=$(cat ../.terraform-version)" >> "$GITHUB_OUTPUT"
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ steps.v.outputs.version }}
+
+      # Prod role comes from terraform/prod/github_oidc.tf (not built yet).
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ fromJSON('{"dev":"arn:aws:iam::640538430394:role/dev-judicial-system-github-ci-role","prod":"arn:aws:iam::141145165006:role/prod-judicial-system-github-ci-role"}')[inputs.environment] }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set image tags
+        env:
+          DEPLOY_ENV: ${{ inputs.environment }}
+          IMAGES: ${{ join(fromJSON(inputs.images), ' ') }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          for s in $IMAGES; do
+            aws ssm put-parameter --overwrite --type String \
+              --name "/judicial-system/$DEPLOY_ENV/$s/image-tag" --value "$TAG"
+            echo "$s -> $TAG" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - run: terraform init -input=false
+      - run: terraform apply -input=false -auto-approve -lock-timeout=5m -no-color

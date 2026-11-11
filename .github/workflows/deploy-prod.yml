@@ -1,0 +1,51 @@
+name: Deploy prod
+
+# Redeploy or roll back prod to an existing release, e.g. 1.2.0.
+# New releases go through release.yml.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version, e.g. 1.2.0
+        required: true
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.r.outputs.tag }}
+      images: ${{ steps.r.outputs.images }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - id: r
+        env:
+          V: ${{ inputs.version }}
+        run: |
+          sha=$(git rev-list -n1 "refs/tags/judicial-v$V" 2>/dev/null) \
+            || { echo "::error::No release judicial-v$V"; exit 1; }
+          echo "tag=prod_${V}_${sha::7}" >> "$GITHUB_OUTPUT"
+          # Image list as of that release.
+          echo "images=$(git show "$sha:scripts/dmr/docker-build-matrix.json" | jq -c '[.services[].name]')" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: resolve
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: prod
+      tag: ${{ needs.resolve.outputs.tag }}
+      images: ${{ needs.resolve.outputs.images }}

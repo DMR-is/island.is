@@ -1,0 +1,49 @@
+# git-cliff config for judicial prod releases (.github/workflows/release.yml).
+# Local preview: git-cliff -c scripts/dmr/cliff.toml --unreleased --bumped-version
+
+[changelog]
+header = ""
+body = """
+{% for group, commits in commits | unique(attribute="message") | group_by(attribute="group") %}
+### {{ group | striptags | trim }}
+{% for commit in commits %}
+- {% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.message | upper_first }}\
+{% if commit.breaking %} **(breaking)**{% endif %} ({{ commit.id | truncate(length=7, end="") }})\
+{% endfor %}
+{% endfor %}
+"""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+# Squash merges list each commit as a body line; parse every line.
+split_commits = true
+processing_order = [
+  "commit_preprocessors",
+  "split_commits",
+  "conventional_commits",
+  "commit_parsers",
+  "link_parsers",
+]
+commit_preprocessors = [
+  { pattern = '(?m)^\* ', replace = "" },
+]
+# Only PR titles, "(#123)": drops squashed sub-commit lines.
+commit_parsers = [
+  { message = '^feat.*\(#[0-9]+\)', group = "<!-- 0 -->Features" },
+  { message = '^fix.*\(#[0-9]+\)', group = "<!-- 1 -->Fixes" },
+  { message = '^perf.*\(#[0-9]+\)', group = "<!-- 2 -->Performance" },
+  { message = '^refactor.*\(#[0-9]+\)', group = "<!-- 3 -->Refactoring" },
+  { message = '^revert.*\(#[0-9]+\)', group = "<!-- 4 -->Reverts" },
+  { message = ".*", skip = true },
+]
+protect_breaking_commits = true
+# Prefixed so upstream island.is tags (v99.0.0, judicial-system-release-*) never match.
+tag_pattern = "^judicial-v[0-9]+\\.[0-9]+\\.[0-9]+$"
+sort_commits = "oldest"
+
+[bump]
+features_always_bump_minor = true
+breaking_always_bump_major = true
+initial_tag = "judicial-v1.0.0"

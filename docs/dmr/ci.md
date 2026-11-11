@@ -28,6 +28,32 @@ prepare ─┬─ lint   (matrix: 7 services + system-e2e)
   required reviewers there to gate it.
 - Service list comes from `scripts/dmr/docker-build-matrix.json`.
 
+## deploy.yml
+
+Reusable deploy (`workflow_call`), used by dev and prod. Writes the tag to SSM
+`/judicial-system/<env>/<svc>/image-tag`, then applies `terraform/<env>`.
+Runs in the GitHub environment of the same name.
+
+## Prod releases
+
+`release.yml`, manual (Actions -> Release -> Run workflow, on `main`):
+
+1. Checks CI passed on `main` for this commit.
+2. Next version from conventional commits since the last `judicial-v*` tag
+   (git-cliff, `scripts/dmr/cliff.toml`): `feat` -> minor, `fix` -> patch,
+   `!` / `BREAKING CHANGE` -> major. Input `version` forces one.
+3. Retags this commit's dev images `prod_<version>_<sha7>`. No rebuild.
+4. Creates GitHub release `judicial-v<version>` with the notes.
+5. Deploys prod via `deploy.yml`. Waits for approval on the `prod` environment.
+
+Notes list only PR titles (`... (#123)`) of type feat/fix/perf/refactor/revert.
+Preview locally: `git-cliff -c scripts/dmr/cliff.toml --unreleased --bumped-version`.
+
+`deploy-prod.yml`: redeploy or roll back prod to an existing release version.
+Only images roll back; terraform comes from `main`.
+
+Tag prefix `judicial-v` keeps clear of upstream tags (`v99.0.0`, `judicial-system-release-*`).
+
 ## terraform.yml
 
 PR / push touching `terraform/`: fmt, validate, plan `terraform/dev` (no apply).
@@ -36,6 +62,7 @@ PR / push touching `terraform/`: fmt, validate, plan `terraform/dev` (no apply).
 
 - ECR push: `arn:aws:iam::592944621100:role/shared-github-ci-role` (infra repo, `DMR-shared/_envcommon/github_oidc.hcl`)
 - Judicial dev: `arn:aws:iam::640538430394:role/dev-judicial-system-github-ci-role` (`terraform/dev/github_oidc.tf`)
+- Judicial prod: `arn:aws:iam::141145165006:role/prod-judicial-system-github-ci-role` (`terraform/prod/github_oidc.tf`, not built yet)
 
 Terraform version is pinned in `terraform/.terraform-version` (tenv reads it too).
 

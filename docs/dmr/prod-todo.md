@@ -61,3 +61,10 @@ Open question: does DMR keep using island.is IDS? Confirm before prod.
 - [ ] `IDENTITY_SERVER_ISSUER_URL` -> prod IDS (api and digital-mailbox-api).
 - [ ] `ALLOW_AUTH_BYPASS` must be `false` (or unset) in prod. Dev has it `true`.
 - [ ] Test login and logout end to end.
+
+## 4. Release pipeline (`release.yml`, see `docs/dmr/ci.md`)
+
+- [ ] `terraform/prod` root (copy of dev), incl. `github_oidc.tf` -> `prod-judicial-system-github-ci-role`.
+- [ ] ECR pull for prod: add `141145165006` to `ecr_pull_accounts` in `infrastructure/DMR-shared/config/shared.yml`, apply ECR stack.
+- [ ] GitHub environment `prod`: required reviewers, deployments from `main` only.
+- [ ] First run: Release with `version` empty -> `judicial-v1.0.0`.
