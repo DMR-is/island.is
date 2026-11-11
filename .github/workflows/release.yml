@@ -1,0 +1,150 @@
+name: Release
+
+# Manual prod release from main:
+#   version from conventional commits (git-cliff, scripts/dmr/cliff.toml)
+#   -> dev images of this commit retagged prod_<version>_<sha7> (no rebuild)
+#   -> GitHub release judicial-v<version> with notes
+#   -> prod deploy, waits for approval on the GitHub "prod" environment.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Force a version, e.g. 1.0.0. Empty = from commits
+        default: ''
+      deploy:
+        description: Deploy to prod after the release
+        type: boolean
+        default: true
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: eu-west-1
+  ECR_ROLE: arn:aws:iam::592944621100:role/shared-github-ci-role
+  GIT_CLIFF_VERSION: 2.14.2
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.image_tag }}
+      images: ${{ steps.images.outputs.images }}
+    steps:
+      - name: Main only
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Release from main only, not $GITHUB_REF"
+          exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+
+      # Only commits whose CI (and dev deploy) passed can go to prod.
+      - name: CI passed for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          n=$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" --event push \
+            --status success --json databaseId --jq length)
+          if [ "$n" -eq 0 ]; then
+            echo "::error::No green CI run on main for $GITHUB_SHA"
+            exit 1
+          fi
+
+      - name: Install git-cliff
+        run: pipx install "git-cliff==$GIT_CLIFF_VERSION"
+
+      - id: version
+        env:
+          FORCED: ${{ inputs.version }}
+        run: |
+          cfg=scripts/dmr/cliff.toml
+          # First release: whole upstream history is no useful changelog.
+          first=$(git tag -l 'judicial-v*' | head -1)
+          if [ -z "$first" ]; then
+            tag="judicial-v${FORCED:-1.0.0}"
+            echo "First judicial prod release." > "$RUNNER_TEMP/notes.md"
+          elif [ -n "$FORCED" ]; then
+            [[ "$FORCED" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Bad version $FORCED"; exit 1; }
+            tag="judicial-v$FORCED"
+          else
+            tag=$(git-cliff -c "$cfg" --unreleased --bumped-version)
+          fi
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "::error::$tag already exists. Nothing new to release?"
+            exit 1
+          fi
+          v="${tag#judicial-v}"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "git_tag=$tag" >> "$GITHUB_OUTPUT"
+          # dd version = split("_", tag)[1] in terraform, so keep _ shape.
+          echo "image_tag=prod_${v}_${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          if [ -n "$first" ]; then
+            git-cliff -c "$cfg" --unreleased --tag "$tag" --strip all > "$RUNNER_TEMP/notes.md"
+          fi
+          [ -s "$RUNNER_TEMP/notes.md" ] || echo "No feature or fix changes." > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - id: images
+        run: echo "images=$(jq -c '[.services[].name]' scripts/dmr/docker-build-matrix.json)" >> "$GITHUB_OUTPUT"
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ECR_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Same image digest dev runs, new tag. Fails if any image is missing.
+      - name: Promote images
+        env:
+          IMAGES: ${{ join(fromJSON(steps.images.outputs.images), ' ') }}
+          DST: ${{ steps.version.outputs.image_tag }}
+        run: |
+          types="application/vnd.oci.image.index.v1+json application/vnd.docker.distribution.manifest.list.v2+json application/vnd.oci.image.manifest.v1+json application/vnd.docker.distribution.manifest.v2+json"
+          for s in $IMAGES; do
+            repo="judicial-system-$s"
+            src=$(aws ecr describe-images --repository-name "$repo" \
+              --query 'imageDetails[].imageTags[]' --output text \
+              | tr '\t' '\n' | grep -m1 "^dev_${GITHUB_SHA::7}_" || true)
+            [ -n "$src" ] || { echo "::error::$repo has no dev_${GITHUB_SHA::7}_* image"; exit 1; }
+            img=$(aws ecr batch-get-image --repository-name "$repo" \
+              --image-ids imageTag="$src" --accepted-media-types $types \
+              --query 'images[0]' --output json)
+            aws ecr put-image --repository-name "$repo" --image-tag "$DST" \
+              --image-manifest "$(jq -r .imageManifest <<< "$img")" \
+              --image-manifest-media-type "$(jq -r .imageManifestMediaType <<< "$img")" >/dev/null
+            echo "$repo: $src -> $DST" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.git_tag }}
+        run: |
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" \
+            --notes-file "$RUNNER_TEMP/notes.md"
+
+  deploy:
+    needs: release
+    if: inputs.deploy
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: prod
+      tag: ${{ needs.release.outputs.tag }}
+      images: ${{ needs.release.outputs.images }}

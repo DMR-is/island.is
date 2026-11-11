@@ -42,7 +42,6 @@ env:
   NODE_OPTIONS: --max-old-space-size=6144
   AWS_REGION: eu-west-1
   ECR_ROLE: arn:aws:iam::592944621100:role/shared-github-ci-role
-  DEPLOY_ROLE: arn:aws:iam::640538430394:role/dev-judicial-system-github-ci-role
 
 jobs:
   prepare:
@@ -231,50 +230,17 @@ jobs:
           echo "### judicial-system-${{ matrix.service }}" >> "$GITHUB_STEP_SUMMARY"
           echo "\`${{ steps.ecr.outputs.registry }}/judicial-system-${{ matrix.service }}:${{ needs.prepare.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"
 
-  # Writes each new tag to SSM (terraform/dev/image_tags.tf), then applies.
+  # SSM image tags + terraform apply, shared with prod (deploy.yml).
   deploy:
     needs: [prepare, lint, test, build, docker]
     if: >-
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_dispatch' && inputs.deploy)
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    environment: dev
-    concurrency:
-      group: terraform-dev
-      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
-    defaults:
-      run:
-        working-directory: terraform/dev
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Read terraform version
-        id: v
-        run: echo "version=$(cat ../.terraform-version)" >> "$GITHUB_OUTPUT"
-
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ steps.v.outputs.version }}
-
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ env.DEPLOY_ROLE }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Set image tags
-        env:
-          IMAGES: ${{ join(fromJSON(needs.prepare.outputs.images), ' ') }}
-          TAG: ${{ needs.prepare.outputs.tag }}
-        run: |
-          for s in $IMAGES; do
-            aws ssm put-parameter --overwrite --type String \
-              --name "/judicial-system/dev/$s/image-tag" --value "$TAG"
-            echo "$s -> $TAG" >> "$GITHUB_STEP_SUMMARY"
-          done
-
-      - run: terraform init -input=false
-      - run: terraform apply -input=false -auto-approve -lock-timeout=5m -no-color
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: dev
+      tag: ${{ needs.prepare.outputs.tag }}
+      images: ${{ needs.prepare.outputs.images }}
