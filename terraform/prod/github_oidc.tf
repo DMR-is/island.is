@@ -48,9 +48,10 @@ data "aws_iam_policy_document" "github_ci_trust" {
       variable = "token.actions.githubusercontent.com:sub"
       # First line: classic subject format. Second: immutable subject format
       # (repo:<org>@<id>/<repo>@<id>:...), which this repo sends today.
+      # Only jobs gated by the GitHub "prod" environment.
       values = [
-        "repo:${local.github_org}/${local.github_repo}:*",
-        "repo:${local.github_org}@${local.github_org_id}/${local.github_repo}@${local.github_repo_id}:*",
+        "repo:${local.github_org}/${local.github_repo}:environment:prod",
+        "repo:${local.github_org}@${local.github_org_id}/${local.github_repo}@${local.github_repo_id}:environment:prod",
       ]
     }
   }
