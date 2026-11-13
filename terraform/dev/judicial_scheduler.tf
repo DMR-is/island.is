@@ -11,6 +11,19 @@
 #
 # dd_enabled = false on purpose: the Datadog agent is an essential sidecar that
 # never exits, so the task would never finish. Logs go to CloudWatch instead.
+#
+# The schedule can be turned off without destroying the task: flip
+# judicial_scheduler_schedule_enabled to false and apply. That drops only the
+# EventBridge rule (create_schedule) — the task definition, Step Function, SNS
+# topics and IAM stay, and the state machine can still be started manually.
+# Defaults to true in dev, where the scheduler runs normally (prod ships it
+# disabled — see terraform/prod/judicial_scheduler.tf).
+
+variable "judicial_scheduler_schedule_enabled" {
+  description = "Whether EventBridge triggers the scheduler on its cron. The task and its Step Function are provisioned regardless; this only gates the EventBridge rule."
+  type        = bool
+  default     = true
+}
 
 locals {
   judicial_scheduler_task_name = "judicial-system-scheduler"
@@ -30,6 +43,10 @@ module "judicial_scheduler" {
   # EventBridge cron runs in UTC, same as the k8s CronJob.
   schedule_expression  = "cron(0 2,9 * * ? *)"
   schedule_description = "Every day at 02:00 and 09:00 UTC"
+
+  # Gated by a variable so the schedule can be turned off without destroying the
+  # task. Defaults to true in dev.
+  create_schedule = var.judicial_scheduler_schedule_enabled
 
   dd_enabled = false
 
