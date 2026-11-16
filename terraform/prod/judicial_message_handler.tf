@@ -38,8 +38,12 @@ module "judicial_message_handler" {
   container_cpu    = 512
   container_memory = 512
 
-  # One consumer, like island.is. More would just share the same queue.
-  desired_count      = 1
+  # PRE-GO-LIVE GUARD (JUD-90): the consumer is intentionally OFF (0 tasks) until
+  # cutover. SQS messages carry triggers for email, Nova SMS and deliveries to
+  # court/police/robot, so nothing may consume them before go-live. At go-live:
+  # purge the queue + DLQ after the final DB migration, THEN set this to 1.
+  # (Steady state is one consumer, like island.is; more would just share the queue.)
+  desired_count      = 0
   enable_autoscaling = false
 
   # Image has node but no curl; Node 22 has fetch built in. startPeriod covers
