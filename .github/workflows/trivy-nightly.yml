@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: scripts/dmr/docker-build-matrix.json
+          sparse-checkout: /scripts/dmr/docker-build-matrix.json
           sparse-checkout-cone-mode: false
       - id: m
         run: echo "images=$(jq -c '[.services[].name]' scripts/dmr/docker-build-matrix.json)" >> "$GITHUB_OUTPUT"

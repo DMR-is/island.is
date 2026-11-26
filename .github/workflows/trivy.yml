@@ -90,9 +90,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
-            .github
-            trivy.yaml
-            .trivyignore.yaml
+            /.github/
+            /trivy.yaml
+            /.trivyignore.yaml
           sparse-checkout-cone-mode: false
 
       - uses: ./.github/actions/setup-trivy
