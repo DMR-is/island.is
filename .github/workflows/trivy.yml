@@ -1,0 +1,150 @@
+name: Trivy
+
+# Reusable Trivy scans, kept off the critical path:
+#   images == []  -> repo scan: lockfiles, Dockerfiles, terraform, secrets
+#   images == [..] -> image scan matrix, one leg per pushed image
+# Results go to the Security tab (SARIF) and the run summary.
+# Repo: secrets and CRITICAL misconfig fail; lockfile CVEs report only.
+# Image: report only until repo variable TRIVY_FAIL_ON is set (CRITICAL).
+# Config: trivy.yaml + .trivyignore.yaml at repo root.
+
+on:
+  workflow_call:
+    inputs:
+      images:
+        description: JSON array of image names. Empty = repo scan
+        type: string
+        default: '[]'
+      tag:
+        description: Image tag. Empty = newest prod_, else dev_, in ECR
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: eu-west-1
+  ECR_ROLE: arn:aws:iam::592944621100:role/shared-github-ci-role
+  FAIL_ON: ${{ vars.TRIVY_FAIL_ON }}
+
+jobs:
+  repo:
+    if: inputs.images == '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-trivy
+
+      # One scan, then convert: no second pass over the tree.
+      # S3 terraform modules are private; fail fast instead of IMDS waits.
+      - id: scan
+        name: Scan repo
+        env:
+          AWS_EC2_METADATA_DISABLED: 'true'
+        run: |
+          trivy fs . --scanners vuln,secret,misconfig \
+            --misconfig-scanners dockerfile,terraform \
+            --format json -o "$RUNNER_TEMP/trivy.json"
+          trivy convert --format sarif -o "$RUNNER_TEMP/trivy.sarif" "$RUNNER_TEMP/trivy.json"
+
+      - name: Summary
+        if: always()
+        run: .github/scripts/trivy-summary.sh "Repo" "$RUNNER_TEMP/trivy.json" >> "$GITHUB_STEP_SUMMARY"
+
+      # v4.39.5. On PRs, code scanning flags only NEW alerts.
+      - uses: github/codeql-action/upload-sarif@915412ff23e8b7659517e607487dbeae018f2934
+        if: always() && steps.scan.outcome == 'success'
+        with:
+          sarif_file: ${{ runner.temp }}/trivy.sarif
+          category: trivy-repo
+
+      # Secrets and CRITICAL misconfig fail. Lockfile CVEs: report only.
+      - name: Gate
+        run: |
+          jq -e '[.Results[]? | .Secrets[]?] | length == 0' "$RUNNER_TEMP/trivy.json" >/dev/null \
+            || { echo "::error::Trivy found committed secrets"; exit 1; }
+          jq -e '[.Results[]? | .Misconfigurations[]? | select(.Status == "FAIL" and .Severity == "CRITICAL")] | length == 0' \
+            "$RUNNER_TEMP/trivy.json" >/dev/null \
+            || { echo "::error::Trivy found CRITICAL misconfigurations"; exit 1; }
+
+  image:
+    if: inputs.images != '[]'
+    name: image (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(inputs.images) }}
+    steps:
+      # Only config and the local action are needed.
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /.github/
+            /trivy.yaml
+            /.trivyignore.yaml
+          sparse-checkout-cone-mode: false
+
+      - uses: ./.github/actions/setup-trivy
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ECR_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - id: ref
+        name: Resolve image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          SVC: ${{ matrix.service }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          repo="judicial-system-$SVC"
+          if [ -z "$TAG" ]; then
+            tags=$(aws ecr describe-images --repository-name "$repo" \
+              --query 'reverse(sort_by(imageDetails[?imageTags], &imagePushedAt))[].imageTags[]' \
+              --output text | tr '\t' '\n')
+            TAG=$(grep -m1 '^prod_' <<< "$tags" || grep -m1 '^dev_' <<< "$tags" || true)
+          fi
+          [ -n "$TAG" ] || { echo "::error::No image found for $repo"; exit 1; }
+          echo "image=$REGISTRY/$repo:$TAG" >> "$GITHUB_OUTPUT"
+
+      # Remote pull straight from ECR: no docker daemon, no layer export.
+      - id: scan
+        name: Scan image
+        env:
+          IMAGE: ${{ steps.ref.outputs.image }}
+        run: |
+          trivy image "$IMAGE" --image-src remote --platform linux/amd64 \
+            --scanners vuln --format json -o "$RUNNER_TEMP/trivy.json"
+          trivy convert --format sarif -o "$RUNNER_TEMP/trivy.sarif" "$RUNNER_TEMP/trivy.json"
+
+      - name: Summary
+        if: always()
+        env:
+          IMAGE: ${{ steps.ref.outputs.image }}
+        run: .github/scripts/trivy-summary.sh "\`${IMAGE##*/}\`" "$RUNNER_TEMP/trivy.json" >> "$GITHUB_STEP_SUMMARY"
+
+      # v4.39.5
+      - uses: github/codeql-action/upload-sarif@915412ff23e8b7659517e607487dbeae018f2934
+        if: always() && steps.scan.outcome == 'success'
+        with:
+          sarif_file: ${{ runner.temp }}/trivy.sarif
+          category: trivy-image-${{ matrix.service }}
+
+      - name: Gate
+        if: env.FAIL_ON != ''
+        run: trivy convert --exit-code 1 --severity "$FAIL_ON" --format table "$RUNNER_TEMP/trivy.json"

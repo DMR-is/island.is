@@ -3,12 +3,14 @@ name: CI
 # One pipeline for the judicial-system services on GitHub-hosted runners,
 # shaped like island.is push.yml:
 #
+#   trivy-repo (no needs, runs beside everything)
 #   prepare ─┬─ lint  (one job, all projects)
 #            ├─ test  (matrix, per project; backend in 6 shards)
 #            ├─ build (matrix, per project)
 #            ├─ docker-deps (one job: deps-stage layer cache in ECR) ── push / dispatch only
 #            │    └─ docker (matrix, per image, after build too) ── push / dispatch only
-#                                   └─ deploy (one job) ── main / dispatch only
+#                                   ├─ deploy (one job) ── main / dispatch only
+#                                   └─ trivy-image (matrix, beside deploy, never blocks it)
 #
 # prepare runs install + codegen ONCE (.github/actions/load-deps) and caches
 # node_modules and the generated files; every matrix leg restores them.
@@ -229,6 +231,26 @@ jobs:
         run: |
           echo "### judicial-system-${{ matrix.service }}" >> "$GITHUB_STEP_SUMMARY"
           echo "\`${{ steps.ecr.outputs.registry }}/judicial-system-${{ matrix.service }}:${{ needs.prepare.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  # Lockfiles, Dockerfiles, terraform, secrets. ~1 min, off the critical path.
+  trivy-repo:
+    permissions:
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/trivy.yml
+
+  # Not in deploy's needs: dev deploys anyway; a red scan blocks release.yml.
+  trivy-image:
+    needs: [prepare, docker]
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      id-token: write
+      security-events: write
+    uses: ./.github/workflows/trivy.yml
+    with:
+      images: ${{ needs.prepare.outputs.images }}
+      tag: ${{ needs.prepare.outputs.tag }}
 
   # SSM image tags + terraform apply, shared with prod (deploy.yml).
   deploy:

@@ -1,0 +1,42 @@
+name: Trivy nightly
+
+# New CVEs land without code changes. Rescan main and the
+# newest prod_ image (else dev_) of every service each weekday.
+
+on:
+  schedule:
+    - cron: '23 5 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      images: ${{ steps.m.outputs.images }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: /scripts/dmr/docker-build-matrix.json
+          sparse-checkout-cone-mode: false
+      - id: m
+        run: echo "images=$(jq -c '[.services[].name]' scripts/dmr/docker-build-matrix.json)" >> "$GITHUB_OUTPUT"
+
+  repo:
+    permissions:
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/trivy.yml
+
+  image:
+    needs: list
+    permissions:
+      contents: read
+      id-token: write
+      security-events: write
+    uses: ./.github/workflows/trivy.yml
+    with:
+      images: ${{ needs.list.outputs.images }}
