@@ -62,7 +62,7 @@ PR / push touching `terraform/`: fmt, validate, plan `terraform/dev` (no apply).
 
 - ECR push: `arn:aws:iam::592944621100:role/shared-github-ci-role` (infra repo, `DMR-shared/_envcommon/github_oidc.hcl`)
 - Judicial dev: `arn:aws:iam::640538430394:role/dev-judicial-system-github-ci-role` (`terraform/dev/github_oidc.tf`)
-- Judicial prod: `arn:aws:iam::141145165006:role/prod-judicial-system-github-ci-role` (`terraform/prod/github_oidc.tf`, not built yet)
+- Judicial prod: `arn:aws:iam::141145165006:role/prod-judicial-system-github-ci-role` (`terraform/prod/github_oidc.tf`, `environment:prod` only)
 
 Terraform version is pinned in `terraform/.terraform-version` (tenv reads it too).
 

@@ -38,6 +38,7 @@ Paths:
 | `.github/workflows/terraform.yml` | Terraform plan on PRs |
 | `scripts/dmr/docker-build.sh` | Shared Docker build for all services |
 | `scripts/dmr/upstream-sync.sh` | Pull judicial commits from upstream `island-is/island.is` |
+| [`docs/`](docs/README.md) | Docs index, incl. [release flow](docs/release.md) |
 | `docs/dmr/` | Workplan, decisions, CI, X-Road, upstream sync, prod todo |
 
 Network, ALB, database and X-Road security server live in the separate `DMR-is/infrastructure` repo (`judicial/` and `xroad/`).
