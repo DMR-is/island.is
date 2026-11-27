@@ -14,10 +14,10 @@ Run "Release" ─> release.yml ─> retag prod_<ver>_<sha7> ─> GitHub release 
 
 Workflow: `.github/workflows/ci.yml`
 
-| Trigger | What runs |
-| --- | --- |
-| Pull request | lint, test, build |
-| Push to `main` | lint, test, build, docker, deploy to dev |
+| Trigger                      | What runs                                            |
+| ---------------------------- | ---------------------------------------------------- |
+| Pull request                 | lint, test, build                                    |
+| Push to `main`               | lint, test, build, docker, deploy to dev             |
 | Manual (`workflow_dispatch`) | Same, pick `images`; deploys only with `deploy=true` |
 
 1. `docker` pushes each service image to ECR as `dev_<sha7>_<rand>`.
@@ -34,10 +34,10 @@ Workflow: `.github/workflows/release.yml`
 
 Trigger: Actions -> Release -> Run workflow, branch `main`.
 
-| Input | Default | Meaning |
-| --- | --- | --- |
-| `version` | empty | Force a version (`1.2.0`). Empty = from commits |
-| `deploy` | `true` | Deploy to prod after the release |
+| Input     | Default | Meaning                                         |
+| --------- | ------- | ----------------------------------------------- |
+| `version` | empty   | Force a version (`1.2.0`). Empty = from commits |
+| `deploy`  | `true`  | Deploy to prod after the release                |
 
 Steps:
 
@@ -45,13 +45,14 @@ Steps:
 2. **Version.** git-cliff reads conventional commits since the last
    `judicial-v*` tag:
 
-   | Commit | Bump |
-   | --- | --- |
-   | `fix:` | patch |
-   | `feat:` | minor |
+   | Commit                       | Bump  |
+   | ---------------------------- | ----- |
+   | `fix:`                       | patch |
+   | `feat:`                      | minor |
    | `feat!:` / `BREAKING CHANGE` | major |
 
    Fails if the tag already exists (nothing new to release).
+
 3. **Release notes.** Built by git-cliff from `scripts/dmr/cliff.toml`.
    Only PR titles (`... (#123)`) of type feat, fix, perf, refactor, revert.
    `chore`, `docs`, `ci` etc. are left out. The first release (`1.0.0`) has a
